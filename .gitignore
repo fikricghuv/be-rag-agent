@@ -1,0 +1,75 @@
+# Byte-compiled files
+*.py[cod]
+__pycache__/
+*.pyo
+
+# Environment variables
+.env
+*.env
+
+# Virtual environment directories
+venv/
+env/
+.venv/
+.python-version
+
+# IDE/editor-specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+*.swn
+.DS_Store
+
+# Distribution/build files
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# PyInstaller
+*.spec
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Coverage reports
+.coverage
+htmlcov/
+*.cover
+*.coverage.*
+.cache
+
+# Logs and local debug files
+*.log
+*.bak
+*.orig
+*.rej
+*.tmp
+*.temp
+*.log.*
+
+# Testing/CI
+.tox/
+.nox/
+.cache/
+pytest_cache/
+coverage.xml
+nosetests.xml
+*.snakemake
+*.mypy_cache/
+*.hypothesis/
+.pytest_cache/
+
+# Linting tools
+pylint.log
+flake8.log
+pylint-report.log
+
+# Ignore databases
+*.sqlite3
+*.db
+*.sqlite
+
+# Ignore notebooks output
+*.ipynb

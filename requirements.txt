@@ -1,0 +1,11 @@
+agno
+ollama
+sqlalchemy
+pgvector
+psycopg[binary]
+psycopg2-binary
+openai
+fastapi
+uvicorn
+python-multipart
+pypdf
