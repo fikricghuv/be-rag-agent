@@ -1,17 +1,9 @@
-from phi.agent import Agent
+from agno.agent import Agent
 from models.openai_model import openai_model
 from tools.postgres_tools import postgres_tools
 from tools.insert_data_feedback_tools import PostgresInsertToolkit
 
-connection_params = {
-    "host": "localhost",
-    "port": 5532,
-    "dbname": "ai",
-    "user": "ai",
-    "password": "ai"
-}
-
-insert_postgres_toolkit = PostgresInsertToolkit(connection_params)
+insert_postgres_toolkit = PostgresInsertToolkit()
 
 customer_feedback_agent = Agent(
     name='Customer Feedback Agent',

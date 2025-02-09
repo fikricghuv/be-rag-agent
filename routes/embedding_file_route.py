@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException
+from models.knowledge_base_config_schema import KnowledgeBaseConfig
 from tools.save_file_from_postgres import save_pdfs_locally
 from tools.knowledge_base_tools import knowledge_base
+from tools.get_knowledge_base_param import get_knowledge_base_config
 
 router = APIRouter()
 
@@ -10,10 +12,21 @@ async def process_embedding():
     try:
         save_pdfs_locally()
         print("PDFs saved locally.")
-        kb = knowledge_base()  # Pastikan knowledge_base diinisialisasi
+
+        db_config = get_knowledge_base_config()
+
+        kb_config = KnowledgeBaseConfig(**db_config)
+        
+        kb = knowledge_base(
+            chunk_size=kb_config.chunk_size,
+            overlap=kb_config.overlap,
+            num_documents=kb_config.num_documents,
+        )
         print("Knowledge base initialized.")
+
         kb.load(recreate=True, upsert=True)
         print("Knowledge base loaded.")
+        
         return {"message": "Embedding berhasil diproses!"}
     except Exception as e:
         print(f"Error: {str(e)}")

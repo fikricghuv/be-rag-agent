@@ -1,11 +1,12 @@
-from phi.tools.postgres import PostgresTools
+from agno.tools.postgres import PostgresTools
+from config.settings import DB_NAME, USER_DB, PASSWORD_DB, HOST, PORT
 
 # Initialize PostgresTools with connection details
 postgres_tools = PostgresTools(
-    host="localhost",
-    port=5532,
-    db_name="ai",
-    user="ai", 
-    password="ai",
+    host=HOST,
+    port=PORT,
+    db_name=DB_NAME,
+    user=USER_DB, 
+    password=PASSWORD_DB,
     inspect_queries=True,
 )

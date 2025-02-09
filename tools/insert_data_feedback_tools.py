@@ -1,8 +1,16 @@
 from typing import Optional
-from phi.tools import Toolkit
-from phi.utils.log import logger
+from agno.tools import Toolkit
+from agno.utils.log import logger
 import psycopg2  # Library untuk PostgreSQL
+from config.settings import DB_NAME, USER_DB, PASSWORD_DB, HOST, PORT
 
+connection_params = {
+    "host": HOST,
+    "port": PORT,
+    "dbname": DB_NAME,
+    "user": USER_DB,
+    "password": PASSWORD_DB
+}
 
 class PostgresInsertToolkit(Toolkit):
     def __init__(self, connection_params: dict):

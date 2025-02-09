@@ -1,13 +1,14 @@
 import psycopg2
+from config.settings import DB_NAME, USER_DB, PASSWORD_DB, HOST, PORT
 
 def get_instructions_from_db():
     """Fungsi untuk mengambil instructions dari database."""
     connection = psycopg2.connect(
-        dbname="ai",
-        user="ai",
-        password="ai",
-        host="localhost",
-        port="5532"
+        dbname=DB_NAME,
+        user=USER_DB,
+        password=PASSWORD_DB,
+        host=HOST,
+        port=PORT
     )
     try:
         with connection.cursor() as cursor:
