@@ -6,6 +6,9 @@ psycopg[binary]
 psycopg2-binary
 openai
 fastapi
+slowapi
 uvicorn
 python-multipart
 pypdf
+#gemini
+google-generativeai

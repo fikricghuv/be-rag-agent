@@ -1,5 +1,6 @@
 from agno.vectordb.pgvector import PgVector, SearchType
 from agno.embedder.ollama import OllamaEmbedder
+from agno.embedder.openai import OpenAIEmbedder
 from agno.knowledge.pdf import PDFKnowledgeBase, PDFReader
 from agno.document.chunking.recursive import RecursiveChunking
 from config.settings import URL_DB_POSTGRES
@@ -10,10 +11,12 @@ def knowledge_base (chunk_size, overlap, num_documents):
         path="resources/pdf_from_postgres",
         # Table name: ai.pdf_documents
         vector_db=PgVector(
-            table_name="pdf_document_ollama_embedder",
+            # table_name="pdf_document_ollama_embedder",
+            table_name="pdf_document_openai_embedder",
             db_url=URL_DB_POSTGRES,
             search_type=SearchType.hybrid,
-            embedder=OllamaEmbedder(id="openhermes")
+            # embedder=OllamaEmbedder(id="openhermes")
+            embedder=OpenAIEmbedder()
         ),
         chunking_strategy=RecursiveChunking(
             # chunk_size=3000,
