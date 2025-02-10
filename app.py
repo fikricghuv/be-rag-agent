@@ -59,6 +59,7 @@ from routes.update_prompt_route import router as update_prompt_router
 from routes.upload_file_route import router as upload_file_router
 from routes.get_knowledge_base_config import router as get_knowledge_base_config
 from routes.update_knowledge_base_config_route import router as update_knowledge_base_config_route
+from routes.generate_token import router as generate_token
 from starlette.responses import JSONResponse
 
 # Inisialisasi aplikasi dan limiter
@@ -79,11 +80,11 @@ app.add_middleware(
 async def add_security_headers(request: Request, call_next):
 
     response = await call_next(request)
-    response.headers["Content-Security-Policy"] = "default-src 'self'"
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    response.headers["Referrer-Policy"] = "no-referrer"
+    # response.headers["Content-Security-Policy"] = "default-src 'self'"
+    # response.headers["X-Content-Type-Options"] = "nosniff"
+    # response.headers["X-Frame-Options"] = "DENY"
+    # response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    # response.headers["Referrer-Policy"] = "no-referrer"
 
     return response
 
@@ -124,6 +125,7 @@ app.include_router(update_prompt_router)
 app.include_router(upload_file_router)
 app.include_router(get_knowledge_base_config)
 app.include_router(update_knowledge_base_config_route)
+app.include_router(generate_token)
 
 # Rate limit untuk root endpoint
 @app.get("/")
