@@ -12,7 +12,7 @@ def knowledge_base (chunk_size, overlap, num_documents):
         # Table name: ai.pdf_documents
         vector_db=PgVector(
             # table_name="pdf_document_ollama_embedder",
-            table_name="pdf_document_openai_embedder",
+            table_name="pdf_document_ollama_embedder",
             db_url=URL_DB_POSTGRES,
             search_type=SearchType.hybrid,
             # embedder=OllamaEmbedder(id="openhermes")

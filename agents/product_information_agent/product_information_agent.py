@@ -14,10 +14,6 @@ from models.gemini_model import gemini_model
 
 instructions_from_db = get_instructions_from_db()
 kb_config = get_knowledge_base_config()
-chunk_size = kb_config['chunk_size']
-overlap = kb_config['overlap']
-num_documents = kb_config['num_documents']
-
 
 storage = PostgresAgentStorage(
     # store sessions in the ai.sessions table
@@ -37,7 +33,7 @@ def call_agent(session_id, user_id) :
         instructions=instructions_from_db,
         # model=openai_model(),
         model=gemini_model(),
-        knowledge=knowledge_base(chunk_size, overlap, num_documents), 
+        knowledge=knowledge_base(**kb_config), 
         search_knowledge=True,
         add_context=True,
         debug_mode=True,
