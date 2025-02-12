@@ -18,6 +18,8 @@ from routes.update_knowledge_base_config_route import router as update_knowledge
 from routes.generate_token import router as generate_token
 from routes.get_name_from_history_chat import router as get_name_from_history_chat
 from routes.get_chat_from_history_chat import router as get_chat_from_history_chat
+from routes.get_total_chat_from_history_chat import router as get_total_chat_from_history_chat
+from routes.get_total_user_from_history_chat import router as get_total_user_from_history_chat
 from starlette.responses import JSONResponse
 
 # Inisialisasi aplikasi dan limiter
@@ -86,6 +88,8 @@ app.include_router(update_knowledge_base_config_route)
 app.include_router(generate_token)
 app.include_router(get_name_from_history_chat)
 app.include_router(get_chat_from_history_chat)
+app.include_router(get_total_chat_from_history_chat)
+app.include_router(get_total_user_from_history_chat)
 
 # Rate limit untuk root endpoint
 @app.get("/")
