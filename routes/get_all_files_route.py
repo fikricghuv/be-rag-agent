@@ -9,4 +9,4 @@ router = APIRouter()
 @router.get("/files", response_model=list[dict])
 def get_all_files(db: Session = Depends(config_db)):
     files = db.query(FileModel).all()
-    return [{"id": file.id, "name": file.filename} for file in files]
+    return [{"uuid_file": file.uuid_file, "filename": file.filename} for file in files]

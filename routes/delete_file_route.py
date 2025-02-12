@@ -5,11 +5,11 @@ from models.upload_file_model import FileModel
 
 router = APIRouter()
 
-@router.delete("/files/{file_id}")
-async def delete_file(file_id: int, db: Session = Depends(config_db)):
+@router.delete("/files/{uuid_file}")
+async def delete_file(uuid_file: str, db: Session = Depends(config_db)):
     try:
         # Query file berdasarkan ID
-        file_to_delete = db.query(FileModel).filter(FileModel.id == file_id).first()
+        file_to_delete = db.query(FileModel).filter(FileModel.uuid_file == uuid_file).first()
         if not file_to_delete:
             raise HTTPException(status_code=404, detail="File not found")
         

@@ -1,21 +1,14 @@
 from sqlalchemy import create_engine, Column, Integer, String, LargeBinary, TIMESTAMP, func
 from sqlalchemy.orm import sessionmaker, declarative_base
 import shutil
+from config.settings import URL_DB_POSTGRES
+from models.upload_file_model import FileModel
 
 # ✅ Menggunakan SQLAlchemy 2.0+
 Base = declarative_base()
 
-# 📌 Model untuk tabel files
-class FileModel(Base):
-    __tablename__ = "files"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    filename = Column(String, nullable=False)
-    content = Column(LargeBinary, nullable=False)
-    uploaded_at = Column(TIMESTAMP, default=func.now())
-
 # 📌 Koneksi ke PostgreSQL
-DATABASE_URL = "postgresql+psycopg2://ai:ai@localhost:5532/ai"
-engine = create_engine(DATABASE_URL)
+engine = create_engine(URL_DB_POSTGRES)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # 📌 Fungsi untuk mengambil semua file dari database
@@ -23,7 +16,7 @@ def get_all_pdfs_from_db():
     session = SessionLocal()
     try:
         pdf_records = session.query(FileModel).all()  # Ambil semua data dari tabel
-        return [{"id": pdf.id, "filename": pdf.filename, "content": pdf.content} for pdf in pdf_records]
+        return [{"uuid_file": pdf.uuid_file, "filename": pdf.filename, "content": pdf.content} for pdf in pdf_records]
     finally:
         session.close()
 
