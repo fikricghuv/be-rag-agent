@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, desc
 from config.config_db import config_db
 from models.chat_history_model import ChatHistory
 from models.chat_history_schema import ChatHistoryResponse

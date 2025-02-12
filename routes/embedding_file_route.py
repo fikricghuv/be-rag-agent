@@ -3,7 +3,6 @@ from models.knowledge_base_config_schema import KnowledgeBaseConfig
 from tools.save_file_from_postgres import save_pdfs_locally
 from tools.knowledge_base_tools import knowledge_base
 from tools.get_knowledge_base_param import get_knowledge_base_config
-
 router = APIRouter()
 
 @router.get("/embedding-file")
