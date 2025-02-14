@@ -13,4 +13,6 @@ pypdf
 #gemini
 google-generativeai
 PyJWT
-
+websockets
+python-socketio
+python-socketio[asyncio]
