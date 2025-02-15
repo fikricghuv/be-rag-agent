@@ -15,8 +15,9 @@ def knowledge_base (chunk_size, overlap, num_documents):
             table_name="pdf_document_ollama_embedder",
             db_url=URL_DB_POSTGRES,
             search_type=SearchType.hybrid,
-            # embedder=OllamaEmbedder(id="openhermes")
-            embedder=OpenAIEmbedder()
+            embedder=OllamaEmbedder(id="openhermes")
+            
+            # embedder=OpenAIEmbedder()
         ),
         chunking_strategy=RecursiveChunking(
             # chunk_size=3000,

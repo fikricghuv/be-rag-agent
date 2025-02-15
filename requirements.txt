@@ -16,3 +16,4 @@ PyJWT
 websockets
 python-socketio
 python-socketio[asyncio]
+faiss-cpu
