@@ -7,7 +7,7 @@ import time
 from agents.product_information_agent.product_information_agent import call_agent
 from config.config_db import config_db
 from models.chat_history_model import ChatHistory
-from config.settings import SECRET_KEY
+from config.settings import SECRET_KEY, ALGORITHM
 from sqlalchemy import text
 import faiss
 import numpy as np
@@ -72,7 +72,7 @@ async def websocket_chat(
     
     try:
         # Decode JWT token
-        decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        decoded_token = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = decoded_token.get("user_id")
         print(user_id)
         if not user_id:
@@ -139,8 +139,8 @@ async def websocket_chat(
                         error=None,
                         latency=latency,
                         agent_name="product information agent",
-                        embedding_output=embedding_output_array,
-                        embedding_input=embedding_input_array,
+                        # embedding_output=embedding_output_array,
+                        # embedding_input=embedding_input_array,
                     )
                     db.add(chat_history)
                     db.commit()
