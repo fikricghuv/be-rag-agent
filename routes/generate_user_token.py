@@ -9,6 +9,14 @@ router = APIRouter()
 @router.post("/auth/generate-user-token")
 def generate_token(request: UserTokenRequest):
     expiration = datetime.datetime.utcnow() + datetime.timedelta(days=1)
-    token = jwt.encode({"user_id": request.user_id, "exp": expiration}, SECRET_KEY, algorithm=ALGORITHM)
+    
+    # Tambahkan `role` dalam token
+    payload = {
+        "user_id": request.user_id,
+        "role": "user",  # Pastikan `UserTokenRequest` punya field `role`
+        "exp": expiration
+    }
+    
+    token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
     
     return {"token": token}

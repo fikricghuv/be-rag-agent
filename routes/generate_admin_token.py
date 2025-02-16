@@ -9,6 +9,14 @@ router = APIRouter()
 @router.post("/auth/generate-admin-token")
 def generate_token(request: AdminTokenRequest):
     expiration = datetime.datetime.utcnow() + datetime.timedelta(days=1)
-    token = jwt.encode({"admin_id": request.admin_id, "exp": expiration}, SECRET_KEY_ADMIN, algorithm=ALGORITHM)
+    
+    # Tambahkan role "admin" ke dalam token
+    payload = {
+        "user_id": request.admin_id,
+        "role": "admin",  # Tambahkan role admin
+        "exp": expiration
+    }
+    
+    token = jwt.encode(payload, SECRET_KEY_ADMIN, algorithm=ALGORITHM)
     
     return {"token": token}
