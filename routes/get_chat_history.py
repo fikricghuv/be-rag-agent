@@ -13,7 +13,8 @@ def get_chat_history(
     ):
     try:
 
-        chat_history_data = db.execute(select(ChatHistory)).scalars().all()
+        chat_history_data = db.execute(select(ChatHistory).order_by(desc(ChatHistory.start_time))).scalars().all()
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
     
