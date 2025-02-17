@@ -58,6 +58,26 @@ async def websocket_chat(
                     await websocket.send_json({"success": False, "error": "Pesan diperlukan"})
                     continue
 
+                # if role == "user":
+                #     # Jika user yang bertanya, agent yang menjawab
+                #     print(f"User {user_id} bertanya:", question)
+                #     agent = call_agent(user_id, user_id)
+                #     response = agent.run(question)
+                #     save_response = response.content if isinstance(response.content, str) else str(response.content)
+
+                #     # Simpan ke database
+                #     chat_history = ChatHistory(
+                #         name=user_id,
+                #         input=question,
+                #         output=save_response,
+                #         error=None,
+                #         latency=time.time(),
+                #         agent_name="product information agent",
+                #     )
+                #     db.add(chat_history)
+                #     db.commit()
+
+                #     await websocket.send_json({"success": True, "data": save_response})
                 if role == "user":
                     # Jika user yang bertanya, agent yang menjawab
                     print(f"User {user_id} bertanya:", question)
@@ -77,9 +97,23 @@ async def websocket_chat(
                     db.add(chat_history)
                     db.commit()
 
+                    # Kirim balasan ke user
                     await websocket.send_json({"success": True, "data": save_response})
 
+                    # 🔥 **Tambahan: Kirim Pesan User ke Semua Admin yang Terhubung**
+                    for admin_id, conn in active_connections.items():
+                        if conn["role"] == "admin":
+                            await conn["websocket"].send_json({
+                                "success": True,
+                                "user_id": user_id,
+                                "question": question,  # Pesan user ke admin
+                                "output": save_response  # Balasan agent ke admin
+                            })
+                            print(f"📨 [BACKEND] Pesan dari user {user_id} dikirim ke admin {admin_id}")
+
+
                 elif role == "admin":
+
                     # Jika yang mengirim adalah customer service
                     target_user_id = data.get("user_id")
                     admin_message = data.get("question")
@@ -112,7 +146,7 @@ async def websocket_chat(
                         db.commit()
                         print("chat admin tersimpan")
 
-                        await websocket.send_json({"success": True, "message": "Pesan terkirim ke user"})
+                        await websocket.send_json({"success": True, "message": "Pesan terkirim ke user", "user_id": target_user_id})
                     else:
                         await websocket.send_json({"success": False, "error": "User tidak ditemukan atau tidak aktif"})
 
