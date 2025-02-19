@@ -6,6 +6,7 @@ from agents.product_information_agent.product_information_agent import call_agen
 from config.config_db import config_db
 from models.chat_history_model import ChatHistory
 from config.settings import SECRET_KEY, ALGORITHM, SECRET_KEY_ADMIN
+import re
 
 router = APIRouter()
 active_connections = {}  # Menyimpan {user_id: {"websocket": WebSocket, "role": "user" atau "cs"}}
@@ -58,40 +59,25 @@ async def websocket_chat(
                     await websocket.send_json({"success": False, "error": "Pesan diperlukan"})
                     continue
 
-                # if role == "user":
-                #     # Jika user yang bertanya, agent yang menjawab
-                #     print(f"User {user_id} bertanya:", question)
-                #     agent = call_agent(user_id, user_id)
-                #     response = agent.run(question)
-                #     save_response = response.content if isinstance(response.content, str) else str(response.content)
-
-                #     # Simpan ke database
-                #     chat_history = ChatHistory(
-                #         name=user_id,
-                #         input=question,
-                #         output=save_response,
-                #         error=None,
-                #         latency=time.time(),
-                #         agent_name="product information agent",
-                #     )
-                #     db.add(chat_history)
-                #     db.commit()
-
-                #     await websocket.send_json({"success": True, "data": save_response})
                 if role == "user":
+                    start_time = time.time()
                     # Jika user yang bertanya, agent yang menjawab
                     print(f"User {user_id} bertanya:", question)
                     agent = call_agent(user_id, user_id)
                     response = agent.run(question)
                     save_response = response.content if isinstance(response.content, str) else str(response.content)
 
+                    save_response = re.sub(r" - Running:\s*search_knowledge_base\(query=.*?\)\n?", "", save_response)
+
                     # Simpan ke database
+                    end_time = time.time()
+                    latency = round(end_time - start_time, 2)
                     chat_history = ChatHistory(
                         name=user_id,
                         input=question,
                         output=save_response,
                         error=None,
-                        latency=time.time(),
+                        latency=latency,
                         agent_name="product information agent",
                     )
                     db.add(chat_history)
@@ -113,7 +99,7 @@ async def websocket_chat(
 
 
                 elif role == "admin":
-
+                    start_time = time.time()
                     # Jika yang mengirim adalah customer service
                     target_user_id = data.get("user_id")
                     admin_message = data.get("question")
@@ -132,13 +118,14 @@ async def websocket_chat(
                             "data": admin_message,
                             "from": "bot"  # Mengirim seolah-olah dari agent
                         })
-
+                        end_time = time.time()
+                        latency = round(end_time - start_time, 2)
                         chat_history = ChatHistory(
                         name=target_user_id,
                         input="",
                         output=admin_message,
                         error=None,
-                        latency=time.time(),
+                        latency=latency,
                         agent_name="Admin",
                         )
 
