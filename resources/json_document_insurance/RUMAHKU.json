@@ -1,0 +1,68 @@
+{
+    "insurance_product": {
+      "name": "Asuransi Mikro Rumahku",
+      "description": "Memberikan proteksi terhadap bangunan tempat tinggal Peserta atau tempat tinggal merangkap tempat usaha rusak akibat kebakaran, ledakan kompor atau tabung gas, petir, kejatuhan pesawat Peserta meninggal dunia dalam peristiwa kebakaran bangunan yang diasuransikan peserta tersebut.",
+      "coverage": {
+        "risks_covered": [
+          "Kebakaran",
+          "Ledakan kompor atau tabung gas",
+          "Kejatuhan pesawat terbang",
+          "Petir",
+          "Tertanggung meninggal dunia dalam peristiwa kejatuhan meninggal kebakaran bangunan yang diasuransikan tersebut"
+        ],
+        "maximum_coverage": "Rp 15.000.000 untuk kerusakan rumah, Rp 5.000.000 untuk santunan meninggal akibat peristiwa kebakaran bangunan yang di asuransikan"
+      },
+      "exclusions": [
+        "Pembobolan, pencurian,penodongan, perampokan, dan penipuan",
+        "Kesengajaan Tertanggung atau pihak dari Tertanggung",
+        "Kesengajaan Tertanggung atau pihak dari Tertanggung"
+      ],
+      "claim_procedure": {
+        "required_documents": [
+          "Fotokopi KTP Peserta Ikhtisar Polis",
+          "Asli/fotokopi legalisir surat keterangan kebakaran yang dikeluarkan pihak yang berwenang termasuk apabila musibah tersebut menyebabkan meninggalnya Peserta",
+          "Jika Peserta meninggal, santunan diberikan kepada Ahli Waris Peserta yang dibuktikan dengan dokumen tambahan yaitu asli fotokopi legalisir Surat Keterangan Meninggal dan Pernyataan Ahli Waris yang dikeluarkan oleh pihak yang berwenang",
+          "Form Klaim Asuransi",
+          "Apabila dalam satu musibah yang sama terdapat lebih dari satu Peserta yang mengalami kerugian, maka pelaporan klaim dapat dilakukan secara kolektif",
+          "Apabila terdapat indikasi bahwa Peserta atau Ahli Waris melakukan kesengajaan dibalik terjadinya musibah untuk mendapatkan keuntungan, maka Perusahaan Asuransi berhak meminta Peserta melengkapi dokumen dokumen tambahan lainnya"
+        ],
+        "claim_from_brinsmobile": [
+          "Isi formulir klaim di BRINSmobile",
+          "Upload dokumen pendukung",
+          "Kirim pengajuan klaim"
+        ]
+      },
+      "contact_information": {
+        "channels": [
+          {
+            "type": "Call Center",
+            "details": "021-79170477"
+          },
+          {
+            "type": "Website",
+            "details": "http://www.brins.co.id"
+          },
+          {
+            "type": "BRINSmobile",
+            "details": "Aplikasi BRINSmobile"
+          },
+          {
+            "type": "Branch Office",
+            "details": [
+              {
+                "city": "Jakarta Selatan",
+                "address": "Graha BRI Insurance, Jl. Mampang Prapatan Raya No.18",
+                "phone": "021-79170477"
+              },
+              {
+                "city": "Surabaya",
+                "address": "Plaza BRI Lt.2, Jl. Basuki Rahmat No.122-138",
+                "phone": "031-5320731"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+  

@@ -74,7 +74,6 @@ async def websocket_chat(
         # Decode JWT token
         decoded_token = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = decoded_token.get("user_id")
-        print(user_id)
         if not user_id:
             await websocket.close(code=1008)
             raise HTTPException(status_code=401, detail="Token tidak valid")

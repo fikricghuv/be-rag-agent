@@ -11,6 +11,7 @@ from models.query_request_schema import QueryRequest
 from models.chat_history_model import ChatHistory
 from config.settings import SECRET_KEY
 from middleware.verify_token import verify_token
+from agents.customer_service_agent.customer_service_agent import call_agent
 
 # Inisialisasi router dan limiter
 router = APIRouter()
@@ -23,17 +24,18 @@ async def ask_agent(
     request: Request,
     body: QueryRequest, 
     db: Session = Depends(config_db), 
-    decoded_token: dict = Depends(verify_token),  # Verifikasi token JWT
+    # decoded_token: dict = Depends(verify_token),  # Verifikasi token JWT
     ):
 
     start_time = time.time()
     try:
         # Ambil user_id dari token
-        user_id = decoded_token.get("user_id")
-        if not user_id:
-            raise HTTPException(status_code=401, detail="User ID not found in token.")
+        # user_id = decoded_token.get("user_id")
+        # if not user_id:
+        #     raise HTTPException(status_code=401, detail="User ID not found in token.")
 
         # Panggil agent untuk memproses pertanyaan
+        user_id = "user_id"
         agent = call_agent(user_id, user_id)
         response = agent.run(body.question)
         save_response = response.content if isinstance(response.content, str) else str(response.content)
@@ -41,7 +43,7 @@ async def ask_agent(
         print("ini adalah response model: " + save_response)
         # Simpan chat history ke database
         chat_history = ChatHistory(
-            name=user_id,
+            name="tset123",
             input=body.question,
             output=save_response,
             error=None,

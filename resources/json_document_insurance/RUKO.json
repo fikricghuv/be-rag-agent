@@ -1,0 +1,112 @@
+{
+    "insurance_product": {
+      "name": "Asuransi Ruko",
+      "description": "Asuransi yang memberikan perlindungan luas kepada Tertanggung jika ruko yang diasuransikan mengalami kerugian / kerusakan akibat resiko yang dijamin oleh Polis.",
+      "coverage": {
+        "object_of_insurance": [
+            "Bangunan",
+            "Isi atau Perlengkapan",
+            "Stock",
+            "Total Sum Insured: Ruko max 5 Milyar (Aggregat in 1 location max 300 Milyar, Max 100 Milyar untuk Laundry & Setrika), Stock & Contents wajib diasuransikan bersama bangunan"
+        ],
+        "risks_covered": {
+            "FLEXAS": [
+                "Kebakaran, Petir, Ledakan, Kejatuhan Pesawat Terbang, dan Asap"
+            ],
+            "extension_of_warranty": [
+                "Kerusuhan, Pemogokan, Huru-Hara, Kerusakan Jahat",
+                "Banjir, Angin Kencang, Badai, dan Kerusakan Akibat Air",
+                "Gempa Bumi, Letusan Gunung Berapi, Tsunami",
+                "Benturan Kendaraan"
+            ] 
+        },
+        "maximum_coverage": "Nilai pertanggungan maksimal Rp 5 miliar per ruko"
+      },
+      "exclusions": [
+        "Kesengajaan atau kelalaian oleh Tertanggung atau Wakil Tertanggung",
+        "Kebakaran hutan, semak, alang-alang atau gambut",
+        "Kerugian perangkat lunak komputer, kartu magnetis,chip",
+        "Kerugian pondasi, bangunan di bawah tanah, pagar",
+        "Kerugian pohon kayu, tanaman, hewan dan atau binatang",
+        "Gangguan usaha atau segala macam kerugian yang sifatnya konsekuensial"
+      ],
+      "deductible": [
+        "Kebakaran, Petir, Ledakan, Tumbukan Pesawat Terbang, dan Asap (FLEXAS) : NIL",
+        "Kerusuhan, Pemogokan, Kerusakan Jahat (RSMD): 10% dari klaim, minimum Rp. 10.000.000,-",
+        "Huru-Hara (CC): 15% dari klaim, minimum Rp. 25.000.000,-",
+        "Banjir, Angin Kencang, Badai, dan Kerusakan Akibat Air (FWTWD): 10% dari klaim, minimum Rp. 10.000.000,-",
+        "Gempa Bumi, Letusan Gunung Berapi, dan Tsunami (EQVET): 2,5% dari Total Nilai Pertanggungan.",
+        "Benturan Kendaraan: Rp. 1.000.000,- / Kecelakaan"
+      ],
+      "apartment_special_conditions": {
+        "special_subjectivity_of_flood": [
+            "Bukan Merupakan daerah rawan Banjir.",
+            "Bebas Banjir selama 5 tahun terakhir.",
+            "Bangunan tidak berada dekat dengan Bendungan/ Sungai/ Pantai (mempunyai jarak aman)."
+        ],
+        "special_subjectivity_of_ruko": [
+            "Bangunan Kelas 1.",
+            "Maksimal 4 Lantai.",
+            "Tidak termasuk kios dan shopping Mall & Pasar.",
+            "Tidak ada proses produksi",
+            "Tidak dalam keadaan Kosong, Tidak dihuni  /Silent Risk",
+            "Terdapat APAR yang berfungsi & tidak expired",
+            "Tidak mengcover Stock/Content Saja, Wajib beserta Bangunan dan Maks nilai stock 50% dari TSI",
+            "Mudah dijangkau Pemadam Kebakaran ( Akses Fire Care, minimum 2 Cars)",
+            "Peralatan atau perangkat yang secara permanen digunakan dalam rumah tangga (seperti televisi, DVD Player, Kulkas , Piano, AC)",
+            "Bukan peralatan yang dapat dibawa bawa dan bergerak seperti laptop, kamera, handy cam, telepon genggam, Kendaraan dll"
+        ],
+        "stock_specific_subjectivity": [
+            "Pengecualian LPG, Thinner, Bahan Kimia, Bahan Mudah terbakar lannya",
+            "Pengecualian Perhiasan, Ternak/Live Stock, Voucher HP",
+            "Pengecualian Stock barang-barang electronik (Smartphone, Gadget, Laptop, Kamera, dll)",
+            "Stock Wajib tertata rapi dalam ruangan dan diberi jarak dari lantai dan dari Lampu"
+        ]
+      },    
+      "claim_procedure": {
+        "required_documents": [
+          "Formulir klaim",
+          "Dokumen pendukung lainnya"
+        ],
+        "claim_from_brinsmobile": [
+          "Klik 'Tambah klaim' di BRINSmobile",
+          "Pilih nomor polis",
+          "Isi data kehilangan",
+          "Upload dokumen pendukung",
+          "Kirim klaim"
+        ]
+      },
+      "contact_information": {
+        "channels": [
+          {
+            "type": "Call Center",
+            "details": "021-79170477"
+          },
+          {
+            "type": "Website",
+            "details": "http://www.brins.co.id"
+          },
+          {
+            "type": "BRINSmobile",
+            "details": "Aplikasi BRINSmobile"
+          },
+          {
+            "type": "Branch Office",
+            "details": [
+              {
+                "city": "Jakarta Selatan",
+                "address": "Graha BRI Insurance, Jl. Mampang Prapatan Raya No.18",
+                "phone": "021-79170477"
+              },
+              {
+                "city": "Surabaya",
+                "address": "Plaza BRI Lt.2, Jl. Basuki Rahmat No.122-138",
+                "phone": "031-5320731"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+  

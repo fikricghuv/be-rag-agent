@@ -1,0 +1,78 @@
+{
+    "insurance_product": {
+      "name": "Asuransi BRINS OTO",
+      "description": "Merupakan produk unggulan yang  memberikan perlindungan terhadap  kendaraan bermotor dari berbagai risiko  beserta perluasan jaminannya.",
+      "coverage": {
+        "comprehensive": [
+          "Menjamin kerugian dan atau kerusakan pada  kendaraan bermotor dan atau kepentingan yang  dipertanggungkan baik Partial Loss atau Total Loss."
+        ],
+        "total_loss_only": [
+          "Penggantian hanya diberikan apabila  kendaraan mengalami kerugian total, seperti kendaraan hilang dicuri atau  tabrakan / kebakaran yang menyebabkan  kerusakan parah dengan  estimasi  biaya    perbaikan  sama  dengan  atau  minimal  75%    dari  harga  pasar kendaraan.",
+          "Constructive  Total  Loss  (CTL)    Unit  kendaraan  mengalami  kerusakan  dengan  estimasi biaya perbaikan mencapai 75% atau lebih dari harga pasar kendaraan bermotor tersebut.",
+          "Actual Total Loss (ATL) Unit kendaraan hilang dan tidak ditemukan dalam waktu 60 (enam puluh) hari sejak tanggal kehilangan."
+        ]
+      },
+      "additional_coverage": [
+        "Tanggung Jawab Hukum terhadap pihak ketiga",
+        "Kerusuhan, Pemogokan, dan Huru-Hara",
+        "Terorisme & Sabotase",
+        "Kecelakaan Diri Penumpang",
+        "Kecelakaan Diri Pengemudi",
+        "Gempa Bumi, Tsunami, dan Letusan Gunung Berapi",
+        "Angin Topan, Badai, dan Banjir"
+      ],
+      "claim_procedure": {
+        "required_documents": [
+          "Polis",
+          "Bukti pembayaran kontribusi",
+          "Surat tuntutan klaim yang ditandatangani Peserta",
+          "Formulir Klaim yang telah diisi",
+          "Fotokopi SIM, STNK, dan BPKB",
+          "Esek-esek nomor mesin dan nomor rangka",
+          "Foto kerusakan",
+          "Laporan Polisi",
+          "Kwitansi dan estimasi dari bengkel rekanan",
+          "Dokumen pendukung lainnya"
+        ],
+        "claim_from_brinsmobile": [
+          "Klik 'Tambah Klaim' di aplikasi BRINSmobile untuk memulai pengajuan klaim",
+          "Isi form informasi survei, kecelakaan, dan pengemudi",
+          "Upload dokumen pendukung",
+          "Pilih nomor polis (MV) untuk klaim",
+          "Kirim klaim dan tunggu konfirmasi"
+        ]
+      },
+      "contact_information": {
+        "channels": [
+          {
+            "type": "Call Center",
+            "details": "021-79170477"
+          },
+          {
+            "type": "Website",
+            "details": "http://www.brins.co.id"
+          },
+          {
+            "type": "BRINSmobile",
+            "details": "Aplikasi BRINSmobile"
+          },
+          {
+            "type": "Branch Office",
+            "details": [
+              {
+                "city": "Jakarta Selatan",
+                "address": "Graha BRI Insurance, Jl. Mampang Prapatan Raya No.18",
+                "phone": "021-79170477"
+              },
+              {
+                "city": "Surabaya",
+                "address": "Plaza BRI Lt.2, Jl. Basuki Rahmat No.122-138",
+                "phone": "031-5320731"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+  

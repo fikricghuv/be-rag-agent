@@ -1,0 +1,77 @@
+{
+    "insurance_product": {
+      "name": "Asuransi Mikro Kerusakan Tempat Usaha",
+      "description": "Memberikan santunan berupa uang apabila peserta asuransi mengalami kerusakan tempat usaha akibat terjadinya salah satu atau beberapa musibah yang tercantum dalam polis.",
+      "coverage": {
+        "object_of_insurance": [
+            "Warung",
+            "Bangunan lapak",
+            "Gerobak yang terdaftar dan memiliki izin",
+            "Kios"
+        ],
+        "risks_covered": [
+          "Kebakaran",
+          "Ledakan kompor atau tabung gas",
+          "Gempa bumi, tsunami, letusan gunung berapi",
+          "Tertabrak kendaraan",
+          "Kerusuhan atau huru-hara",
+          "Kejatuhan pesawat terbang",
+          "kebakaran bangunan sekitar"
+        ],
+        "maximum_coverage": "Santunan maksimal Rp 5.000.000"
+      },
+      "exclusions": [
+        "Musibah Bencana alam disebabkan selain risiko yang Disebutkan",
+        "Kesengajaan Tertanggung",
+        "Mengajukan dokumen atau alat bukti palsu",
+        "Usaha yang diasuransikan termasuk usaha yang tidak memiliki izin usaha atau kegiatan yang melanggar hukum termasuk transaksi terkait narkoba, perdagangan manusia, pornografi, perjudian atau lainnya",
+        "Kerusakan tempat usaha yang besar kerusakannya belum mencapai 50% dari kerusakan total property tersebut"
+      ],
+      "claim_procedure": {
+        "required_documents": [
+          "Fotokopi KTP Peserta Ikhtisar Polis",
+          "Asli/fotokopi legalisir surat keterangan kebakaran yang dikeluarkan pihak yang berwenang",
+          "Form Klaim Asuransi",
+          "Apabila dalam satu musibah yang sama terdapat lebih dari satu Peserta yang mengalami kerugian, maka pelaporan klaim dapat dilakukan secara kolektif",
+          "Apabila terdapat indikasi bahwa Peserta atau Ahli Waris melakukan kesengajaan dibalik terjadinya musibah untuk mendapatkan keuntungan, maka Perusahaan Asuransi berhak meminta Peserta melengkapi dokumen dokumen tambahan lainnya"
+        ],
+        "claim_from_brinsmobile": [
+          "Isi formulir klaim di BRINSmobile",
+          "Upload dokumen pendukung",
+          "Kirim pengajuan klaim"
+        ]
+      },
+      "contact_information": {
+        "channels": [
+          {
+            "type": "Call Center",
+            "details": "021-79170477"
+          },
+          {
+            "type": "Website",
+            "details": "http://www.brins.co.id"
+          },
+          {
+            "type": "BRINSmobile",
+            "details": "Aplikasi BRINSmobile"
+          },
+          {
+            "type": "Branch Office",
+            "details": [
+              {
+                "city": "Jakarta Selatan",
+                "address": "Graha BRI Insurance, Jl. Mampang Prapatan Raya No.18",
+                "phone": "021-79170477"
+              },
+              {
+                "city": "Surabaya",
+                "address": "Plaza BRI Lt.2, Jl. Basuki Rahmat No.122-138",
+                "phone": "031-5320731"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+  

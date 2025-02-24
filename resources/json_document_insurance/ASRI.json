@@ -1,0 +1,81 @@
+{
+    "insurance_product": {
+      "name": "Asuransi BRINS ASRI",
+      "description": "Merupakan produk asuransi yang memberikan jaminan atas kerusakan pada harta benda dan tempat tinggal yang secara langsung disebabkan oleh Kebakaran beserta perluasannya, Kecelakaan Diri, Bantuan Sewa serta Tanggung Jawab Hukum terhadap Pihak Ketiga akibat kebakaran dari objek yang dipertanggungkan.",
+      "coverage": {
+        "risks_covered": [
+          "Kebakaran, Petir, Peledakan, Kejatuhan Pesawat Terbang, Asap, Bencana (Gempa bumi,  Letusan  Gunung  Berapi,  Tsunami;  Angin Topan, Badai, Banjir, Kebongkaran, Kerusuhan, Huru-Hara dan Terorisme dan Sabotase.",
+          "Risiko Kematian, Cacat Tetap, Biaya Perawatan  dan  atau  Pengobatan  Medis  yang secara langsung disebabkan oleh suatu kecelakaan sebagai akibat langsung dari Kebakaran",
+          "Bila objek Pertanggungan mengalami kebakaran dan sudah tidak layak dihuni maka Bantuan Sewa akan diberikan.",
+          "Disebabkan  oleh  kesalahan  pribadi  Tertanggung dalam aktivitasnya dirumah yang dipertanggungkan dan atau akibat langsung  dari  kecelakaan/kebakaran  /kerusakan  atas  rumah  tinggal  yang  dipertanggungkan."
+        ]
+      },
+      "exclusions": [
+        "Kesengajaan atau kelalaian oleh Tertanggung atau Wakil Tertanggung.",
+        "Kebakaran hutan, semak, alang-alang atau gambut.",
+        "Kerugian perangkat lunak komputer, kartu magnetis, chip;",
+        "Kerugian pondasi,  bangunan di  bawah tanah, pagar;",
+        "Kerugian pohon kayu, tanaman, hewan dan atau binatang;",
+        "Gangguan usaha atau segala macam kerugian yang sifatnya konsekuensial."
+      ],
+      "special provisions": [
+        "Manfaat  jaminan  bencana  alam  dalam  polis  ini  hanya  berlaku  jika  objek  yang  diasuransikan  tidak pernah  mengalami  kerugian  akibat  bencana  alam  dalam  3  (tiga)  tahun  terakhir  sejak  awal  periode pertanggungan"
+      ],
+      "deductible": [
+        "Flexas : Nil",
+        "Terorisme & Sabotage : 10% of claim min. Rp. 10 jt.",
+        "Banjir, Angin Topan, Badai, Kerusakan Akibat Air : 10% of claim.",
+        "Gempa Bumi, letusan gunung berapi, tsunami : 2.5% of TSI.",
+        "Kerusuhan, Pemogokan, Penghalangan Bekerja, Perbuatan Jahat, Huru-Hara dan Penjarahan yang tercantum dalam Polis (RSMDCC) : 10% of claim, minimal Rp. 10 juta.",
+        "Kebongkaran : 10% of claim min Rp. 2,5 juta."
+      ],
+      "claim_procedure": {
+        "required_documents": [
+          "Polis",
+          "Formulir laporan klaim",
+          "Foto kerusakan",
+          "Laporan polisi (jika relevan)",
+          "Dokumen pendukung lainnya"
+        ],
+        "claim_from_brinsmobile": [
+          "Klik 'Tambah klaim' di BRINSmobile",
+          "Pilih nomor polis (Non-MV)",
+          "Isi form informasi kehilangan",
+          "Upload dokumen pendukung",
+          "Kirim klaim untuk diproses"
+        ]
+      },
+      "contact_information": {
+        "channels": [
+          {
+            "type": "Call Center",
+            "details": "021-79170477"
+          },
+          {
+            "type": "Website",
+            "details": "http://www.brins.co.id"
+          },
+          {
+            "type": "BRINSmobile",
+            "details": "Aplikasi BRINSmobile"
+          },
+          {
+            "type": "Branch Office",
+            "details": [
+              {
+                "city": "Jakarta Selatan",
+                "address": "Graha BRI Insurance, Jl. Mampang Prapatan Raya No.18",
+                "phone": "021-79170477"
+              },
+              {
+                "city": "Surabaya",
+                "address": "Plaza BRI Lt.2, Jl. Basuki Rahmat No.122-138",
+                "phone": "031-5320731"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+  

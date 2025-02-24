@@ -1,0 +1,92 @@
+{
+    "insurance_product": {
+      "name": "Asuransi Apartemen",
+      "description": "Asuransi yang memberikan perlindungan bagi pemilik atau penyewa apartemen dari berbagai risiko yang mungkin terjadi, seperti kebakaran, pencurian, kerusakan akibat bencana alam, atau tanggung jawab hukum.",
+      "coverage": {
+        "risks_covered": {
+            "FLEXAS": [
+                "Kebakaran, Petir, Ledakan, Kejatuhan Pesawat Terbang, dan Asap"
+            ],
+            "extension_of_warranty": [
+                "Kerusuhan, Pemogokan, Huru-Hara, Kerusakan Jahat",
+                "Banjir, Angin Kencang, Badai, dan Kerusakan Akibat Air",
+                "Gempa Bumi, Letusan Gunung Berapi, Tsunami",
+                "Benturan Kendaraan"
+            ] 
+        },
+        "maximum_coverage": "Rp 2 Miliar per unit (agregat Rp 300 Miliar per lokasi)"
+      },
+      "exclusions": [
+        "Kesengajaan atau kelalaian Tertanggung atau Wakil Tertanggung.",
+        "Kebakaran hutan, semak, alang-alang atau gambut",
+        "Kerugian perangkat lunak komputer, kartu magnetis,chip;",
+        "Kerugian pondasi, bangunan di bawah tanah, pagar;",
+        "Kerugian pohon kayu, tanaman, hewan dan atau binatang;",
+        "Gangguan usaha atau segala macam kerugian yang sifatnya konsekuensial."
+      ],
+      "deductible": [
+        "Kebakaran, Petir, Ledakan, Tumbukan Pesawat Terbang, dan Asap (FLEXAS) : NIL",
+        "Kerusuhan, Pemogokan, Kerusakan Jahat (RSMD): 10% dari klaim, minimum Rp. 10.000.000,-",
+        "Huru-Hara (CC): 15% dari klaim, minimum Rp. 25.000.000,-",
+        "Banjir, Angin Kencang, Badai, dan Kerusakan Akibat Air (FWTWD): 10% dari klaim, minimum Rp. 10.000.000,-",
+        "Gempa Bumi, Letusan Gunung Berapi, dan Tsunami (EQVET): 2,5% dari Total Nilai Pertanggungan.",
+        "Benturan Kendaraan: Rp. 1.000.000,- / Kecelakaan"
+      ],
+      "apartment_special_conditions": {
+        "special_subjectivity_of_flood": [
+            "Bukan Merupakan daerah rawan Banjir.",
+            "Bebas Banjir selama 5 tahun terakhir.",
+            "Bangunan tidak berada dekat dengan Bendungan/ Sungai/ Pantai (mempunyai jarak aman)."
+        ],
+        "special_subjectivity_of_apartments": [
+            "Apartemen tidak bersatu dengan pusat perbelanjaan.",
+            "Peralatan atau perangkat yang secara permanen digunakan dalam rumah tangga (seperti televisi, DVD Player, Kulkas , Piano, AC).",
+            "Bukan peralatan yang dapat dibawa bawa dan bergerak seperti laptop, kamera, handy cam ,telepon genggam, Kendaraan dll."
+        ]
+      },
+      "claim_procedure": {
+        "required_documents": [
+          "Formulir klaim",
+          "Foto kerusakan",
+          "Laporan polisi (jika diperlukan)"
+        ],
+        "claim_from_brinsmobile": [
+          "Ajukan klaim melalui BRINSmobile.",
+          "Isi informasi kehilangan dan upload dokumen pendukung.",
+          "Kirim pengajuan klaim untuk diproses."
+        ]
+      },
+      "contact_information": {
+        "channels": [
+          {
+            "type": "Call Center",
+            "details": "021-79170477"
+          },
+          {
+            "type": "Website",
+            "details": "http://www.brins.co.id"
+          },
+          {
+            "type": "BRINSmobile",
+            "details": "Aplikasi BRINSmobile"
+          },
+          {
+            "type": "Branch Office",
+            "details": [
+              {
+                "city": "Jakarta Selatan",
+                "address": "Graha BRI Insurance, Jl. Mampang Prapatan Raya No.18",
+                "phone": "021-79170477"
+              },
+              {
+                "city": "Surabaya",
+                "address": "Plaza BRI Lt.2, Jl. Basuki Rahmat No.122-138",
+                "phone": "031-5320731"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+  

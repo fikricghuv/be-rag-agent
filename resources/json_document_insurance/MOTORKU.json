@@ -1,0 +1,80 @@
+{
+    "insurance_product": {
+      "name": "Asuransi Mikro Motorku",
+      "description": "Produk  yang  memberikan  santunan  kepada  Peserta  Asuransi  dengan  manfaat  santunan atas  kerugian  motor,  santunan  terhadap  peserta  yang  mengendarai  motor  dan  santunan tanggung jawab pihak ketiga, yang menyebabkan pihak lain meninggal dunia/cacat tetap.",
+      "amount_of _compensation": [
+        "Santunan Kerugian Motor sebesar Rp.2.500.000,-",
+        "Santunan Kecelakaan Diri Pengendara Motor sebesar Rp.2.500.000,-",
+        "Santunan Tanggung Jawab Hukum Terhadap Pihak Ketiga sebesar Rp.2.500.000,-",
+        "Santunan tetap dibayarkan meskipun Peserta telah/akan mendapat manfaat jaminan atau ganti rugi dari pihak lain."
+    ],
+      "coverage": {
+        "risks_covered": [
+          "Hilang  karena  pencurian  dengan  paksaan  dan  atau  kekerasan  dan  tidak ditemukan  kembali  hingga  kurun  waktu  30  (tiga  puluh)  hari  kalender  sejak kejadian, atau mengalami kerusakan total, yang disebabkan oleh benturan,  tabrakan,  tergelincir,  terperosok  atau  terbalik  yang  menyebabkan kerugian dan/atau  biaya  perbaikan  sebesar  100%  (seratus  persen)  dari  harga pasar kendaraan. (selanjutnya disebut “Kerugian Motor“)",
+          "Pada  saat  Peserta  mengendarai  motor  yang  mengakibatkan  meninggal dunia atau cacat tetap keseluruhan akibat kecelakaan yang mengakibatkan luka badan yang dapat ditentukan oleh Ilmu Kedokteran. (selanjutnya disbut “Kecelakaan Diri Pengendara Motor“)",
+          "Apabila ketika Peserta mengendarai motor yang dipertanggungkan menabrak dan menyebabkan pihak ketiga atau pihak lain mengalami meninggal dunia atau  cacat  tetap  keseluruhan,  dimana  menurut  ketentuan  hukum  Peserta harus  bertanggung  jawab.  (selanjutnya  disebut  “Tanggung  Jawab  Hukum Terhadap Pihak Ketiga“)"
+        ],
+        "eligibility": [
+            "Peserta harus berusia antara 17 s/d. 60 tahun pada saat pendaftaran asuransi.",
+            "Usia maksimum motor 7 (tujuh) tahun sejak tahun perakitan pada saat pendaftaran asuransi.",
+            "1 (satu) Motor hanya dapat dijamin dengan 1(satu) polis, Peserta yang memiliki lebih dari 1 motor dapat membeli polis asuransi maksimal untuk 4(empat) motor.",
+            "Motor wajib memiliki dokumen resmi (STNK & BPKB).",
+            "Maksimal total pemberian santunan Rp.7,5 juta, polis dinyatakan berakhir jika peserta telah mengajukan klaim yang pertama kali."
+        ]
+      },
+      "exclusions": [
+        "Peristiwa Pembangkitan Rakyat, Pengambilalihan Kekuasaan, Revolusi, Pemberontakan, Kekuatan Militer, Penyerbuan, Perang Saudara, Perang dan Permusuhan, Tindakan Subversif, Terorisme, Sabotase, Kerusuhan atau Huru hara.",
+        "Penyitaan atau pengambilalihan oleh pejabat yang berwenang.",
+        "Kerugian motor karena digunakan untuk tindakan melawan hukum.",
+        "Kesengajaan oleh Peserta, wakil dari Peserta atau pihak lain atas perintah atau sepengetahuan Peserta.",
+        "Klaim diajukan dengan menggunakan dokumen palsu, itikad tidak baik, dusta atau tipuan.",
+        "Bencana alam meliputi banjir, tanah longsor, erupsi, gempa bumi, tsunami, dan angin topan.",
+        "Motor kelebihan muatan atau dipergunakan tidak sesuai keperuntukannya, untuk menarik atau mendorong kendaraan atau benda lain, memberi pelajaran mengemudi, turut serta dalam perlombaan, latihan, penyaluran hobi kecakapan atau kecepatan, karnaval, pawai, kampanye, unjuk rasa, melakukan tindak kejahatan, misi keamanan, bunuh diri, kerugian atau hilang karena penggelapan, penipuan,hipnotis dan tindakan jahat sejenisnya."
+      ],
+      "claim_procedure": {
+        "required_documents": [
+          "dokumen copy STNK kendaraan yang masih berlaku.",
+          "Foto kerusakan motor, untuk risiko Kerugian Motor karena kecelakaan.",
+          "Surat keterangan meninggal dunia atau cacat tetap dari dokter atau rumah sakit.",
+          "Dokumen dari kepolisian jika terkait tanggung jawab hukum pihak ketiga atau Kerugian Motor karena hilang akibat pencurian dengan paksaan dan atau kekerasan."
+        ],
+        "claim_from_brinsmobile": [
+          "Laporkan kerugian dalam waktu 10 hari kalender.",
+          "Upload dokumen pendukung melalui BRINSmobile.",
+          "Pilih nomor polis untuk klaim dan kirim."
+        ]
+      },
+      "contact_information": {
+        "channels": [
+          {
+            "type": "Call Center",
+            "details": "021-79170477"
+          },
+          {
+            "type": "Website",
+            "details": "http://www.brins.co.id"
+          },
+          {
+            "type": "BRINSmobile",
+            "details": "Aplikasi BRINSmobile"
+          },
+          {
+            "type": "Branch Office",
+            "details": [
+              {
+                "city": "Jakarta Selatan",
+                "address": "Graha BRI Insurance, Jl. Mampang Prapatan Raya No.18",
+                "phone": "021-79170477"
+              },
+              {
+                "city": "Surabaya",
+                "address": "Plaza BRI Lt.2, Jl. Basuki Rahmat No.122-138",
+                "phone": "031-5320731"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+  

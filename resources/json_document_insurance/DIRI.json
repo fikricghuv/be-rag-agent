@@ -1,0 +1,79 @@
+{
+    "insurance_product": {
+      "name": "Asuransi BRINS DIRI",
+      "description": "Asuransi  yang  memberikan  jaminan  atas  risiko  yang  timbul  akibat  kecelakaan  seperti kematian, cacat tetap seluruh/ sebagian tubuh dan biaya perawatan atau pengobatan yang diperlukan sesuai ketentuan jaminan sebagai akibat dari kecelakaan tersebut.",
+      "object_of_insurance": [
+        "Tertanggung 18 sd 60 Tahun",
+        "Untuk peserta dibawah 18 tahun mengikuti peserta dewasanya"
+      ],
+      "amount_of_compensation": [
+        "Meninggal Dunia; Max 100% dari Nilai Pertanggungan.",
+        "Cacat Tetap Total/ Sebagian; Max 100% dari Nilai Pertanggungan.",
+        "Biaya Pengobatan; Max 10% dari Nilai Pertanggungan."
+      ],
+      "coverage": {
+        "risks_covered": [
+          "Kematian.",
+          "Cacat Tetap Total atau Sebagian",
+          "iaya Perawatan dan atau Pengobatan yang secara langsung akibat kecelakaan yang datangnya secara tiba tiba dan langsung berdampak  terhadap Peserta."
+        ]
+      },
+      "exclusions": [
+        "Akibat olahraga kontak fisik olah raga ekstrem.",
+        "Akibat berlatih atau mengikuti perlombaan kecepatan",
+        "Melanggar aturan atau hukum",
+        "Terserang Virus atau kuman penyakit termasuk HIV atau AIDS",
+        "Penyakit gula",
+        "Dinas kemiliteran"
+      ],
+      "claim_procedure": {
+        "required_documents": [
+          "Formulir laporan pengajuan klaim berikut kronologis kecelakaan yang terjadi.",
+          "KTP",
+          "Copy Polis",
+          "Surat Keterangan Visum et repertum.",
+          "Kwitansi Asli Copy legalisir dari Rumah sakit atau Balai Pengobatan yang terdaftar resmi.",
+          "Dokumen lain yang relevan."
+        ],
+        "claim_from_brinsmobile": [
+          "Klik 'Tambah klaim' di BRINSmobile",
+          "Pilih nomor polis (Non-MV)",
+          "Isi form informasi kehilangan",
+          "Upload dokumen pendukung",
+          "Kirim klaim untuk diproses"
+        ]
+      },
+      "contact_information": {
+        "channels": [
+          {
+            "type": "Call Center",
+            "details": "021-79170477"
+          },
+          {
+            "type": "Website",
+            "details": "http://www.brins.co.id"
+          },
+          {
+            "type": "BRINSmobile",
+            "details": "Aplikasi BRINSmobile"
+          },
+          {
+            "type": "Branch Office",
+            "details": [
+              {
+                "city": "Jakarta Selatan",
+                "address": "Graha BRI Insurance, Jl. Mampang Prapatan Raya No.18",
+                "phone": "021-79170477"
+              },
+              {
+                "city": "Surabaya",
+                "address": "Plaza BRI Lt.2, Jl. Basuki Rahmat No.122-138",
+                "phone": "031-5320731"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+  

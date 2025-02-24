@@ -1,0 +1,82 @@
+{
+    "insurance_product": {
+      "name": "Asuransi BRINS Sepeda",
+      "description": "Asuransi yang memberikan ganti rugi kepada Tertanggung terhadap kerugian atas dan/atau kerusakan pada sepeda dan/atau kepentingan yang dipertanggungkan.",
+      "coverage": {
+        "risks_covered": [
+          "Kerugian total akibat tabrakan, benturan, tergelincir, atau terjatuh yang menyebaban kerusakan parah.",
+          "Tabrakan, benturan, tergelincir, terjatuh dari jalan maupun berada diatas alat angkut untuk penyeberangan yang berada di bawah pengawasan Direktorat Jenderal Perhubungan Darat, Laut dan Udara.",
+          "Termasuk kerugian dan atau kerusakan yang diakibatkan alat angkut bersangkutan mengalami kecelakaan, kebakaran.",
+          "Menjamin kehilangan karena dicuri dengan disertai tindak kekerasan dan tidak diketemukan dalam waktu 30 (tiga puluh) hari kalender sejak terjadinya pencurian",
+          "Maksimum nilai penggantian setinggi-tingginya sebesar Nilai Pertanggungan yang tercantum dalam polis."
+        ],
+        "bicycle_insurance_characteristics": [
+            "Sepeda yang dapat dijamin merupakan sepeda original (resmi pabrikan) dengan maksimum usia sepeda 2 (dua) tahun terhitung dari tahun pembuatan. Dapat dibuktikan dengan nomor seri yang ada dalam batang tubuh sepeda.",
+            "Nilai minimum harga pertanggungan mengacu pada harga sebenarnya sepeda tersebut yaitu minimal Rp. 5 juta (lima juta rupiah) dan maksimal Rp. 200 juta (dua ratus juta rupiah).",
+            "Penggunaan sepeda hanya untuk dijalan umum, Definisi jalan umum adalah jalan yang diperuntukkan bagi lalu lintas umum, ada akses jalan yang dapat dilewati kendaraan untuk khalayak umum, tidak termasuk area hutan, bukit, gunung dan sejenisnya.",
+            "Wajib melampirkan invoice pembelian didalam pengajuan penutupan asuransi.",
+            "Tertanggung wajib memberitahukan kepada Penanggung setiap keadaan yang memperbesar risiko yang dijamin Polis, selambat-lambatnya dalam waktu 7 (hari) kalender apabila terjadi perubahan pada bagian dan/atau penggunaan sepeda",
+            "Kerugian total adalah berdasarkan harga sebenarnya, terjadi jika: Kerusakan dan/atau kerugian karena suatu peristiwa yang dijamin oleh Polis dimana biaya perbaikan, penggantian atau pemulihan ke keadaan semula sesaat sebelum terjadinya kerugian dan/atau kerusakan sama dengan atau lebih tinggi dari 75% (tujuh puluh lima persen) dari harga sebenarnya; atau Hilang karena pencurian sebagaimana dimaksud dalam Polis ini dan tidak diketemukan dalam waktu 30 (tiga puluh) hari kalender sejak terjadinya pencarian"
+        ]
+      },
+      "deductible": "Deductible 10% of claim dengan Min Rp. 1.000.000,- (satu juta rupiah) untuk risiko selain kecelakaan diri.",
+      "exclusions": [
+        "Sepeda digunakan untuk menarik atau mendorong kendaraan atau benda lain, memberi pelajar mengemudi; Turut serta dalam perlombaan Professional, latihan mengendarai sepeda, penyaluran hobi kecakapan atau kecepatan, karnaval, pawai, kampanye, unjuk rasa; Melakukan tindak kejahatan; Penggunaan selain dari yang dicantumkan dalam Polis;",
+        "Penggelapan, penipuan, hipnotis dan sejenisnya.",
+        "Pencurian dan/atau perbuatan jahat yang dilakukan oleh suami atau istri, anak, orang tua atau saudara sekandung Tertanggung; orang yang bekerja pada Tertanggung, orang yang sepengetahuan atau seizin Tertanggung; orang yang tinggal bersama Tertanggung; orang yang berada di bawah pengawasan Tertanggung.",
+        "Pertanggungan ini tidak menjamin kerugian atas perlengkapan tambahan yang tidak disebutkan pada Polis; ban, velg dan perlengkapan lain yang tidak disertai kerusakan pada bagian sepeda kecuali yang disebabkan oleh risiko yang dijamin dalam Polis ini."
+      ],
+      "claim_procedure": {
+        "required_documents": [
+          "Surat tuntutan",
+          "Formulir Klaim",
+          "copy identitas pemilik",
+          "Copy polis",
+          "Kuitansi pembelian sepeda",
+          "serial number sepeda",
+          "kartu garansi, jika diperlukan",
+          "estimasi biaya perbaikan bengkel",
+          "Berita Acara dari Kepolisian atau Surat Keterangan dari Kelurahan setempat mengenai peristiwa yang terjadi, jika diperlukan",
+          "laporan rinci dan selengkap mungkin tentang hal ikhwal yang menurut pengetahuannya menyebabkan kerugian atau kerusakan itu, jika diperlukan;",
+          "keterangan-keterangan dan bukti-bukti lain yang relevan, yang wajar dan pantas diminta oleh Penanggung."
+        ],
+        "claim_from_brinsmobile": [
+          "Isi informasi kehilangan di BRINSmobile.",
+          "Upload dokumen pendukung.",
+          "Kirim pengajuan klaim."
+        ]
+      },
+      "contact_information": {
+        "channels": [
+          {
+            "type": "Call Center",
+            "details": "021-79170477"
+          },
+          {
+            "type": "Website",
+            "details": "http://www.brins.co.id"
+          },
+          {
+            "type": "BRINSmobile",
+            "details": "Aplikasi BRINSmobile"
+          },
+          {
+            "type": "Branch Office",
+            "details": [
+              {
+                "city": "Jakarta Selatan",
+                "address": "Graha BRI Insurance, Jl. Mampang Prapatan Raya No.18",
+                "phone": "021-79170477"
+              },
+              {
+                "city": "Surabaya",
+                "address": "Plaza BRI Lt.2, Jl. Basuki Rahmat No.122-138",
+                "phone": "031-5320731"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+  
