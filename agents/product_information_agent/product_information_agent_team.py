@@ -1,14 +1,11 @@
-from agno.agent import Agent, AgentMemory
+from agno.agent import Agent
 from models.openai_model import openai_model
 from agno.storage.agent.postgres import PostgresAgentStorage
-from agno.memory.db.postgres import PgMemoryDb
 from tools.get_instruction import get_instructions_from_db
 from config.settings import URL_DB_POSTGRES
 from tools.knowledge_base_tools import knowledge_base, knowledge_base_json
 from tools.get_knowledge_base_param import get_knowledge_base_config
 from agents.product_information_agent.prompt_instructions import instructions_agent
-from agno.models.mistral import MistralChat
-from agno.tools.duckduckgo import DuckDuckGoTools
 
 instructions_from_db = get_instructions_from_db('Product Information Agent')
 kb_config = get_knowledge_base_config()
@@ -27,9 +24,12 @@ product_information_agent = Agent(
     agent_id="Product-Information-Agent",
     description="You are a helpful Agent called 'Agentic RAG' and your goal is to assist the user in the best way possible.",
     # instructions=instructions_from_db,
-    instructions=instructions_agent,
+    # instructions=instructions_agent,
+    instructions=[
+        "Use knowledge base to provide information about BRI INSURANCE products",
+        "Summarize the document before answering questions",
+    ],
     model=openai_model(),
-    tools=[DuckDuckGoTools()],
     # knowledge=knowledge_base(**kb_config), 
     knowledge=knowledge_base_json(),
     search_knowledge=True,

@@ -8,6 +8,8 @@ class CustomerFeedbackResponse(BaseModel):
     sentiment: str
     potential_actions: str
     keyword_issue: str
+    category: str
+    product_name: str
     created_at: datetime
 
     class Config:

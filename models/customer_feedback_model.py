@@ -13,4 +13,6 @@ class CustomerFeedback(Base):
     sentiment = Column(Text, nullable=False)
     potential_actions = Column(Text, nullable=False)
     keyword_issue = Column(Text, nullable=False)
+    category = Column(Text, nullable=True)
+    product_name = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)

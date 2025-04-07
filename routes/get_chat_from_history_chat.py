@@ -21,11 +21,13 @@ def get_chat_history(
         result = db.execute(query).scalars().all()
         print("result", result)
         
-        # Jika tidak ada data, kembalikan error 404
+        # Tidak perlu raise error kalau kosong, cukup return []
         if not result:
             print(f"No chat history found for user '{user_name}'")
-            raise HTTPException(status_code=404, detail=f"No chat history found for user '{user_name}'")
+            return []  # <== penting, biar tidak 500
         
         return result
     except Exception as e:
+        print("error get chat from history chat", e)
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
+

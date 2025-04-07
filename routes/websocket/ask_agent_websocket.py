@@ -6,57 +6,55 @@ import jwt
 import time
 from agents.product_information_agent.product_information_agent import call_agent
 from config.config_db import config_db
-from models.chat_history_model import ChatHistory
+from models.chat_history_model import ChatHistory, ChatHistoryEmbedding
 from config.settings import SECRET_KEY, ALGORITHM
 from sqlalchemy import text
-import faiss
 import numpy as np
 from agno.embedder.ollama import OllamaEmbedder
+from agno.embedder.openai import OpenAIEmbedder
+from sqlalchemy.sql import text
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
 active_connections = {}
 
 # Inisialisasi FAISS sebagai cache retrieval
-embedding_dim = 4096  # Sesuaikan dengan model embedding (OLLAMA atau lainnya)
-faiss_index = faiss.IndexFlatL2(embedding_dim)  # Menggunakan L2 distance
-faiss_responses = {}  # Dictionary untuk menyimpan hasil response terkait dengan embedding
+embedding_dim = 1536  # Sesuaikan dengan model embedding (OLLAMA atau lainnya)
 
 # Inisialisasi embedder
-embedder = OllamaEmbedder()  
+embedder = OpenAIEmbedder()  
 
-# Fungsi untuk mencari di FAISS cache sebelum menjalankan agent
 def search_cached_answer(user_question, db, similarity_threshold=0.85, limit=1):
     """
     Mencari jawaban yang paling mirip berdasarkan embedding input dan output di PostgreSQL.
-    
+
     - user_question: string pertanyaan user
     - db: koneksi database SQLAlchemy
     - similarity_threshold: batas minimal kesamaan (default 0.85)
     - limit: jumlah jawaban maksimal yang dikembalikan
     """
-    user_embedding = embedder.get_embedding(user_question)  # Buat embedding pertanyaan
-    embedding_array = np.array(user_embedding).tolist()  # Konversi ke format list agar bisa digunakan di SQL
-    
+    user_embedding = embedder.get_embedding(user_question)  # Dapatkan embedding pertanyaan
+
     query = text("""
-        SELECT output, 
-            1 - (embedding_input::vector <-> %(embedding)s::vector) AS input_similarity,
-            1 - (embedding_output::vector <-> %(embedding)s::vector) AS output_similarity
-        FROM chat_history
-        WHERE (1 - (embedding_input::vector <-> %(embedding)s::vector) > %(threshold)s
-            OR 1 - (embedding_output::vector <-> %(embedding)s::vector) > %(threshold)s)
-        ORDER BY GREATEST(1 - (embedding_input::vector <-> %(embedding)s::vector), 
-                        1 - (embedding_output::vector <-> %(embedding)s::vector)) DESC
-        LIMIT %(limit)s;
+        SELECT ch.output,
+            1 - (che.embedding_question <-> :embedding) AS input_similarity,
+            1 - (che.embedding_answer <-> :embedding) AS output_similarity
+        FROM ai.chat_history_embedding che
+        JOIN ai.chat_history ch ON ch.id = che.refidchathistory
+        WHERE (1 - (che.embedding_question <-> :embedding) > :threshold
+            OR 1 - (che.embedding_answer <-> :embedding) > :threshold)
+        ORDER BY GREATEST(1 - (che.embedding_question <-> :embedding), 
+                        1 - (che.embedding_answer <-> :embedding)) DESC
+        LIMIT :limit;
     """)
 
-    result = db.execute(query, {
-        "embedding": embedding_array,
+    results = db.execute(query, {
+        "embedding": user_embedding,  # Tidak perlu diubah formatnya
         "threshold": similarity_threshold,
         "limit": limit
-    }).fetchone()
+    }).fetchall()
 
-    return result[0] if result else None 
+    return results[0][0] if results else None  
 
 @router.websocket("/ws/chat")
 async def websocket_chat(
@@ -96,39 +94,47 @@ async def websocket_chat(
                 try:
                     
                     # Cek apakah pertanyaan sudah ada di cache FAISS
-                    # cached_response = search_cached_answer(question, db)
-                    # print("cached_response : ", cached_response)
-                    # if cached_response:
-                    #     latency = time.time() - start_time
-                    #     embedding_input = embedder.get_embedding(question)   # Embed pertanyaan
-                    #     embedding_output = embedder.get_embedding(cached_response)   # Embed jawaban
-                    #     embedding_input_array = np.array(embedding_input).tolist()
-                    #     embedding_output_array = np.array(embedding_output).tolist()
-                    #     chat_history = ChatHistory(
-                    #         name=user_id,
-                    #         input=question,
-                    #         output=cached_response,
-                    #         error=None,
-                    #         latency=latency,
-                    #         agent_name="product information agent",
-                    #         embedding_output=embedding_output_array,
-                    #         embedding_input=embedding_input_array,
-                    #     )
-                    #     db.add(chat_history)
-                    #     db.commit()
-                    #     await websocket.send_json({"success": True, "data": cached_response})
-                    #     return  # Stop execution jika hasil ditemukan dalam cache
+                    cached_response = search_cached_answer(question, db)
+
+                    if cached_response and cached_response["output"]:  # Pastikan response tidak kosong
+                        input_similarity = cached_response["input_similarity"]
+                        output_similarity = cached_response["output_similarity"]
+
+                        # Jika tingkat kesamaan terlalu rendah, jangan gunakan cache
+                        if max(input_similarity, output_similarity) < 0.85:
+                            cached_response = None  
+
+                    if cached_response:
+                        latency = time.time() - start_time
+                        embedding_input = embedder.get_embedding(question)   # Embed pertanyaan
+                        embedding_output = embedder.get_embedding(cached_response["output"])   # Embed jawaban
+
+                        # Simpan ke chat history
+                        chat_history = ChatHistory(
+                            name=user_id,
+                            input=question,
+                            output=cached_response["output"],
+                            error=None,
+                            latency=latency,
+                            agent_name="product information agent",
+                        )
+                        db.add(chat_history)
+                        db.commit()
+
+                        # Kirim respons ke frontend
+                        await websocket.send_json({
+                            "success": True,
+                            "data": cached_response["output"],
+                            "similarity": max(input_similarity, output_similarity)
+                        })
+                        return  # Stop execution jika hasil ditemukan dalam cache
+
                     
                     agent = call_agent(user_id, user_id)
                     response = agent.run(question)
                     save_response = response.content if isinstance(response.content, str) else str(response.content)
                     
                     latency = time.time() - start_time
-
-                    embedding_input = embedder.get_embedding(question)   # Embed pertanyaan
-                    embedding_output = embedder.get_embedding(save_response)   # Embed jawaban
-                    embedding_input_array = np.array(embedding_input).tolist()
-                    embedding_output_array = np.array(embedding_output).tolist()
 
                     # Simpan ke database
                     chat_history = ChatHistory(
@@ -138,10 +144,26 @@ async def websocket_chat(
                         error=None,
                         latency=latency,
                         agent_name="product information agent",
-                        # embedding_output=embedding_output_array,
-                        # embedding_input=embedding_input_array,
                     )
                     db.add(chat_history)
+                    db.commit()
+
+                    # Ambil ID yang baru dimasukkan untuk referensi di tabel embedding
+                    chat_history_id = chat_history.id  
+                    print("chat_history_id : ", chat_history_id)
+
+                    embedding_input = embedder.get_embedding(question)   # Embed pertanyaan
+                    embedding_output = embedder.get_embedding(save_response)   # Embed jawaban
+                    embedding_input_array = np.array(embedding_input).tolist()
+                    embedding_output_array = np.array(embedding_output).tolist()
+
+                    chat_history_embedding = ChatHistoryEmbedding(
+                        refidchathistory=chat_history_id,
+                        embedding_answer=embedding_output_array,
+                        embedding_question=embedding_input_array
+                    )
+
+                    db.add(chat_history_embedding)
                     db.commit()
 
                     await websocket.send_json({"success": True, "data": save_response})
@@ -155,8 +177,6 @@ async def websocket_chat(
                         error=str(e),
                         latency=latency,
                         agent_name="product information agent",
-                        # embedding_output=[],
-                        # embedding_input=[],
                     )
                     db.add(chat_history)
                     db.commit()
