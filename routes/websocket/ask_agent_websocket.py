@@ -4,7 +4,7 @@ from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 import jwt
 import time
-from agents.product_information_agent.product_information_agent import call_agent
+from agents.customer_service_team.customer_service_team import call_agent
 from config.config_db import config_db
 from models.chat_history_model import ChatHistory, ChatHistoryEmbedding
 from config.settings import SECRET_KEY, ALGORITHM

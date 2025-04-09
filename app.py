@@ -3,7 +3,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from routes.ask_agent_route import router as ask_agent_router
 from routes.delete_file_route import router as delete_file_router
 from routes.embedding_file_route import router as process_embedding_router
 from routes.get_all_files_route import router as get_all_files_router
@@ -77,7 +76,6 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 
 # Daftarkan route
-app.include_router(ask_agent_router)
 app.include_router(delete_file_router)
 app.include_router(process_embedding_router)
 app.include_router(get_all_files_router)

@@ -7,7 +7,7 @@ from config.config_db import config_db
 from models.chat_history_model import ChatHistory, ChatHistoryEmbedding
 # from models.chat_history_embedding_model import ChatHistoryEmbedding
 from config.settings import SECRET_KEY, ALGORITHM, SECRET_KEY_ADMIN
-from agents.customer_service_agent.customer_service_agent import call_agent
+from agents.customer_service_team.customer_service_team import call_agent
 from middleware.verify_token_websocket import verify_token
 from agno.embedder.openai import OpenAIEmbedder
 from sqlalchemy.sql import text
@@ -162,12 +162,16 @@ async def websocket_chat(
 
                     save_response = response.content
                     response_metrics = response.metrics
+                    # response_agent = response.agent_id
+
                     if not isinstance(save_response, str):
                         save_response = str(save_response)
                         
 
                     print("ini adalah content metrics: " + str(response_metrics))
                     print("save response :" , save_response)
+                    # print("ini adalah agent id: " + str(response_agent))
+
                     # save_response = response.content if isinstance(response.content, str) else str(response.content)
                     save_response = re.sub(r" - Running:\s*search_knowledge_base\(query=.*?\)\\n?", "", save_response)
                     save_response = re.sub(r" - Running:\s*\w+\(.*?\)\n?", "", save_response)
