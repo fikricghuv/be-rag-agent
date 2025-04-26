@@ -16,9 +16,10 @@ def knowledge_base (chunk_size, overlap, num_documents):
         # Table name: ai.pdf_documents
         vector_db=PgVector(
             # table_name="pdf_document_ollama_embedder",
-            table_name="pdf_document_embedder_ada_002",
+            table_name="pdf_document_embedder_3_small",
             db_url=URL_DB_POSTGRES,
             search_type=SearchType.hybrid,
+            # search_type=SearchType.vector,
             embedder=OpenAIEmbedder()
         ),
         num_documents=5,

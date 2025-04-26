@@ -1,12 +1,13 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from config.config_db import config_db
-from models.prompt_model import Prompt
+from controllers.prompt_controller import fetch_all_prompts
 
 router = APIRouter()
 
-# Endpoint Get Prompts
-@router.get("/prompts")
+@router.get("/prompts", response_model=list[dict])
 def get_prompts(db: Session = Depends(config_db)):
-    prompts = db.query(Prompt).all()
-    return [{"name": prompt.name, "content": prompt.content} for prompt in prompts]
+    try:
+        return fetch_all_prompts(db)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve prompts: {str(e)}")

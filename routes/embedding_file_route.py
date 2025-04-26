@@ -12,17 +12,17 @@ async def process_embedding():
         save_pdfs_locally()
         print("PDFs saved locally.")
 
-        # db_config = get_knowledge_base_config()
+        db_config = get_knowledge_base_config()
 
-        # kb_config = KnowledgeBaseConfig(**db_config)
+        kb_config = KnowledgeBaseConfig(**db_config)
         
-        # kb = knowledge_base(
-        #     chunk_size=kb_config.chunk_size,
-        #     overlap=kb_config.overlap,
-        #     num_documents=kb_config.num_documents,
-        # )
-        kb = knowledge_base_json()
-        print("Knowledge base initialized.")
+        kb = knowledge_base(
+            chunk_size=kb_config.chunk_size,
+            overlap=kb_config.overlap,
+            num_documents=kb_config.num_documents,
+        )
+        # kb = knowledge_base_json()
+        # print("Knowledge base initialized.")
 
         kb.load(recreate=True, upsert=True)
         print("Knowledge base loaded.")

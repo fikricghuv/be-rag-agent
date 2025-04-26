@@ -20,6 +20,7 @@ from routes.get_name_from_history_chat import router as get_name_from_history_ch
 from routes.get_chat_from_history_chat import router as get_chat_from_history_chat
 from routes.get_total_chat_from_history_chat import router as get_total_chat_from_history_chat
 from routes.get_total_user_from_history_chat import router as get_total_user_from_history_chat
+from routes.chat_agent import router as chat_agent_router
 from routes.websocket.ask_agent_websocket import router as ask_agent_websocket
 from routes.websocket.send_message_user_admin_websocket import router as send_message_from_user_admin_websocket
 from starlette.responses import JSONResponse
@@ -93,6 +94,7 @@ app.include_router(get_name_from_history_chat)
 app.include_router(get_chat_from_history_chat)
 app.include_router(get_total_chat_from_history_chat)
 app.include_router(get_total_user_from_history_chat)
+app.include_router(chat_agent_router)
 # app.include_router(ask_agent_websocket)
 app.include_router(send_message_from_user_admin_websocket)
 

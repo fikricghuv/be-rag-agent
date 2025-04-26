@@ -25,34 +25,53 @@ storage = PostgresAgentStorage(
 def call_agent(session_id, user_id) :
 
     customer_service_agent = Team(
-        members=[product_information_agent, customer_feedback_agent, general_insurance_information_agent], #
+        members=[product_information_agent, customer_feedback_agent], #, general_insurance_information_agent
         # mode="coordinate",
         mode="route",
-        # model=openai_model(),
-        model=OpenRouter(id="anthropic/claude-3.7-sonnet", api_key=OPEN_ROUTER_API_KEY),
+        model=openai_model(),
+        # model=OpenRouter(id="anthropic/claude-3.7-sonnet", api_key=OPEN_ROUTER_API_KEY),
         name='Customer Service Team',
         team_id="customer_service_team",
         user_id=user_id,
         session_id=session_id,
         description="You are a Customer Service Team to delegate question and information about BRI INSURANCE products to appropriate agent.",
-        # instructions=instructions_from_db,
         instructions=dedent("""
-            Analyze customer inquiries or feedback and direct them to the appropriate agent.
+        ### Peran Anda:
+        Anda adalah pemimpin dari Customer Service Team untuk menangani berbagai jenis pertanyaan dari pelanggan seputar produk BRI INSURANCE dan mengarahkan setiap pertanyaan atau masukan ke agent yang paling tepat.
 
-            Identify the type of request:​
+        ### Tugas Utama:
+        - Menganalisis isi pertanyaan atau masukan dari customer.
+        - Mengklasifikasikan topik atau jenis pertanyaan.
+        - Mengarahkan pertanyaan tersebut ke agent spesifik sesuai dengan klasifikasinya.
+        - Menjaga percakapan tetap sopan, profesional, dan ramah seperti layaknya customer service manusia.
 
-            If related to BRI INSURANCE product information, forward it to the Product Information Agent.​
+        ### Alur Routing:
+        1. **Informasi Produk BRI INSURANCE**
+            → Rute ke: **Product Information Agent**
+            → Contoh: "Apa saja manfaat dari produk X?", "Bagaimana cara membeli produk Y?"
 
-            If it involves problem/issue, feedback, complaints, or suggestions, forward it to the Feedback Handler Agent.​
+        2. **Masalah / Komplain / Feedback / Saran**
+            → Rute ke: **Customer Feedback Agent**
+            → Contoh: "Saya mengalami masalah klaim.", "Aplikasi tidak bisa dibuka.", "Saya punya saran untuk layanan customer care."
 
-            If it is a general question about insurance, forward it to the General Information Agent.​
+        3. **Pertanyaan Umum tentang Asuransi**
+            → Rute ke: **Product Information Agent**
+            → Contoh: "Apa itu asuransi all risk?", "Bagaimana cara kerja asuransi kendaraan?"
 
-            Ensure each request is directed accurately and efficiently to maintain customer satisfaction.
-            
-            Give answer as human as possible not as a robot.
-                            
-            If the question is not related to BRI INSURANCE, please dont answer it.
-            """),
+        ### Panduan Interaksi:
+        - Jika ada pertanyaan yang mengandung beberapa topik, rute satu per satu ke agent yang sesuai.
+        - Jelaskan secara singkat kepada customer bahwa permintaan mereka sedang dialihkan ke bagian yang relevan.
+        - Jika pertanyaannya tidak relevan dengan BRI INSURANCE, jawab dengan sopan bahwa Anda hanya dapat membantu terkait layanan BRI INSURANCE.
+        
+        ### Penting:
+        - Jangan menjawab pertanyaan yang bukan terkait BRI INSURANCE.
+        - Delegasikan pertanyaan ke agent yang sesuai.
+        - Tidak perlu memberikan jawaban kepada user jika ada agent yang didelegasikan yang menjawab.
+        - Fokus pada memberikan respon yang alami, tidak seperti robot.
+        - Jaga akurasi routing demi kepuasan pelanggan.
+
+        """),
+
         debug_mode=True,
         show_tool_calls=True,
         memory=TeamMemory(
@@ -69,9 +88,10 @@ def call_agent(session_id, user_id) :
         # share_member_interactions=True,  # Share all member responses with subsequent member requests.
         # show_members_responses=True,
         read_team_history=True,
-        enable_team_history=True,
-        telemetry=False,
+        # enable_team_history=True,
+        # telemetry=False,
         # expected_output="Delegate task to appropriate agent.",
+        
     )
 
     return customer_service_agent

@@ -1,18 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
-from config.config_db import config_db
-from models.prompt_model import Prompt
+from controllers.prompt_controller import update_prompt_in_db
 from models.update_prompt_schema import PromptUpdate
+from config.config_db import config_db
 
 router = APIRouter()
 
 # Endpoint Update Prompt
 @router.put("/prompts/{name}")
 def update_prompt(name: str, prompt_update: PromptUpdate, db: Session = Depends(config_db)):
-    prompt = db.query(Prompt).filter(Prompt.name == name).first()
-    if not prompt:
-        raise HTTPException(status_code=404, detail="Prompt not found")
-    
-    prompt.content = prompt_update.content
-    db.commit()
-    return {"message": "Prompt updated successfully"}
+    try:
+        update_prompt_in_db(name, prompt_update, db)
+        return {"message": "Prompt updated successfully"}
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal Server Error")

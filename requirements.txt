@@ -15,5 +15,4 @@ google-generativeai
 PyJWT
 websockets
 python-socketio
-python-socketio[asyncio]
-faiss-cpu
+lancedb
