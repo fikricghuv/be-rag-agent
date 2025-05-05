@@ -14,15 +14,13 @@ from routes.update_prompt_route import router as update_prompt_router
 from routes.upload_file_route import router as upload_file_router
 from routes.get_knowledge_base_config import router as get_knowledge_base_config
 from routes.update_knowledge_base_config_route import router as update_knowledge_base_config_route
-from routes.generate_user_token import router as generate_user_token
-from routes.generate_admin_token import router as generate_admin_token
 from routes.get_name_from_history_chat import router as get_name_from_history_chat
 from routes.get_chat_from_history_chat import router as get_chat_from_history_chat
 from routes.get_total_chat_from_history_chat import router as get_total_chat_from_history_chat
 from routes.get_total_user_from_history_chat import router as get_total_user_from_history_chat
 from routes.chat_agent import router as chat_agent_router
-from routes.websocket.ask_agent_websocket import router as ask_agent_websocket
 from routes.websocket.send_message_user_admin_websocket import router as send_message_from_user_admin_websocket
+from routes.generate_chat_id import router as generate_id_router
 from starlette.responses import JSONResponse
 
 
@@ -88,15 +86,14 @@ app.include_router(update_prompt_router)
 app.include_router(upload_file_router)
 app.include_router(get_knowledge_base_config)
 app.include_router(update_knowledge_base_config_route)
-app.include_router(generate_user_token)
-app.include_router(generate_admin_token)
 app.include_router(get_name_from_history_chat)
 app.include_router(get_chat_from_history_chat)
 app.include_router(get_total_chat_from_history_chat)
 app.include_router(get_total_user_from_history_chat)
 app.include_router(chat_agent_router)
-# app.include_router(ask_agent_websocket)
 app.include_router(send_message_from_user_admin_websocket)
+app.include_router(generate_id_router)
+
 
 # Rate limit untuk root endpoint
 @app.get("/")

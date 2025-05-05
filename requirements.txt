@@ -11,8 +11,11 @@ uvicorn
 python-multipart
 pypdf
 #gemini
-google-generativeai
+google-genai
 PyJWT
 websockets
 python-socketio
 lancedb
+#search
+baidusearch
+pycountry

@@ -51,11 +51,11 @@ def fetch_chat_history_by_user(user_name: str, db: Session):
     return result  # Kosong tetap return [], tidak perlu raise error
 
 # Saving chat history from websocket
-def save_chat_history(db, user_id, question, save_response):
-    start_time = time.time()
+def save_chat_history(db, user_id, question, save_response, latency):
+    # start_time = time.time()
     save_response = re.sub(r" - Running:.*?\n?", "", save_response, flags=re.MULTILINE)
-    end_time = time.time()
-    latency = round(end_time - start_time, 2)
+    # end_time = time.time()
+    # latency = round(end_time - start_time, 2)
 
     chat_history = ChatHistory(
         name=user_id,
@@ -63,7 +63,7 @@ def save_chat_history(db, user_id, question, save_response):
         output=save_response,
         error=None,
         latency=latency,
-        agent_name="product information agent",
+        agent_name="Customer Service Agent",
     )
     db.add(chat_history)
     db.commit()
