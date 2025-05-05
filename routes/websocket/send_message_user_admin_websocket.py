@@ -68,6 +68,9 @@ async def websocket_chat(websocket: WebSocket, chatId: str = None, role: str = N
                 data = await websocket.receive_json()
                 print("📩 Data diterima:", data)
                 question = data.get("question")
+                role = data.get("role")
+                chatId = data.get("user_id")
+                print("🔑 Token diterima:", chatId, role, question)
 
                 if not question:
                     await websocket.send_json({"success": False, "error": "Pesan diperlukan"})
@@ -89,7 +92,7 @@ async def websocket_chat(websocket: WebSocket, chatId: str = None, role: str = N
                     # loop = asyncio.get_running_loop()
                     # response = await loop.run_in_executor(None, team.run, question)
 
-                    agent = call_customer_service_agent(chatId, role)
+                    agent = call_customer_service_agent(chatId, chatId)
                     print("🧠 Memanggil agent...")
                     loop = asyncio.get_running_loop()
                     print("📥 Pertanyaan diterima:", question)
@@ -98,6 +101,7 @@ async def websocket_chat(websocket: WebSocket, chatId: str = None, role: str = N
 
                     end_time = time.time()
                     latency = round(end_time - start_time, 2)
+                    print("⏱️ Latency:", latency)
 
                     save_response = save_chat_history(db, chatId, question, response.content, latency)
 
