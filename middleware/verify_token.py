@@ -1,6 +1,6 @@
 from fastapi import HTTPException, Request
 import jwt
-from config.settings import SECRET_KEY, ALGORITHM
+from core.settings import SECRET_KEY, ALGORITHM
 
 # Middleware untuk memverifikasi JWT
 def verify_token(request: Request):

@@ -1,7 +1,7 @@
 import jwt
 from datetime import datetime, timedelta
 from fastapi import HTTPException
-from config.settings import SECRET_KEY, ALGORITHM, SECRET_KEY_REFRESH_USER
+from core.settings import SECRET_KEY, ALGORITHM, SECRET_KEY_REFRESH_USER
 
 def create_access_token(user_id: str, role: str = "user", expires_delta: timedelta = timedelta(minutes=15)) -> str:
     to_encode = {

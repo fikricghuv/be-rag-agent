@@ -1,4 +1,4 @@
-from config.settings import SECRET_KEY, ALGORITHM, SECRET_KEY_ADMIN
+from core.settings import SECRET_KEY, ALGORITHM, SECRET_KEY_ADMIN
 from fastapi import HTTPException
 import jwt
 

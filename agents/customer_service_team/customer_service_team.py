@@ -1,9 +1,9 @@
-from models.openai_model import openai_model
+from agents.models.openai_model import openai_model
 from agno.storage.agent.postgres import PostgresAgentStorage
 from agno.memory.db.postgres import PgMemoryDb, MemoryDb
-from tools.get_instruction_from_db import get_instructions_from_db
-from config.settings import URL_DB_POSTGRES, OPEN_ROUTER_API_KEY
-from tools.get_knowledge_base_param import get_knowledge_base_config
+from utils.get_instruction_from_db import get_instructions_from_db
+from core.settings import URL_DB_POSTGRES, OPEN_ROUTER_API_KEY
+from utils.get_knowledge_base_param import get_knowledge_base_config
 from agents.product_information_agent.product_information_agent import product_information_agent
 from agents.feedback_handler_agent.customer_feedback_agent import customer_feedback_agent
 from agents.general_information_insurance_agent.general_insurance_information_agent import general_insurance_information_agent

@@ -1,10 +1,10 @@
 from agno.agent import Agent
-from models.openai_model import openai_model
+from agents.models.openai_model import openai_model
 from agno.storage.agent.postgres import PostgresAgentStorage
-from tools.get_instruction_from_db import get_instructions_from_db
-from config.settings import URL_DB_POSTGRES, OPEN_ROUTER_API_KEY
-from tools.knowledge_base_tools import knowledge_base, knowledge_base_json
-from tools.get_knowledge_base_param import get_knowledge_base_config
+from utils.get_instruction_from_db import get_instructions_from_db
+from core.settings import URL_DB_POSTGRES, OPEN_ROUTER_API_KEY
+from agents.tools.knowledge_base_tools import knowledge_base, knowledge_base_json
+from utils.get_knowledge_base_param import get_knowledge_base_config
 from agno.models.openrouter import OpenRouter
 from textwrap import dedent
 

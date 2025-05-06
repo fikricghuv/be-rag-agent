@@ -4,7 +4,7 @@ from agno.knowledge.pdf_url import PDFUrlKnowledgeBase
 from agno.knowledge.pdf import PDFKnowledgeBase
 from agno.models.openai import OpenAIChat
 from agno.vectordb.pgvector import PgVector, SearchType
-from config.settings import URL_DB_POSTGRES
+from core.settings import URL_DB_POSTGRES
 from dotenv import load_dotenv
 import os
 

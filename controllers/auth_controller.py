@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 import uuid
-from models.chat_ids_model import ChatIds, UserRole
+from database.models.chat_ids_model import ChatIds, UserRole
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, Depends
-from config.config_db import config_db
+from core.config_db import config_db
 import datetime
 
 class AuthController:

@@ -1,5 +1,5 @@
 from agno.agent import Agent
-from models.openai_model import openai_model
+from agents.models.openai_model import openai_model
 from textwrap import dedent
 
 general_insurance_information_agent = Agent(

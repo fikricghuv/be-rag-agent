@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from models.upload_file_model import FileModel
+from database.models.upload_file_model import FileModel
 from fastapi import HTTPException
 
 def delete_file_from_db(uuid_file: str, db: Session):

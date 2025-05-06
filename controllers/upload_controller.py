@@ -2,7 +2,7 @@
 
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
-from models.upload_file_model import FileModel
+from database.models.upload_file_model import FileModel
 import uuid
 from sqlalchemy import func
 import logging

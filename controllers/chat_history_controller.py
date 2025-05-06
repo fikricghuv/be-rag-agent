@@ -6,7 +6,7 @@ from typing import List
 import re
 import time
 import numpy as np
-from models.chat_history_model import ChatHistory, ChatHistoryEmbedding
+from database.models.chat_history_model import ChatHistory, ChatHistoryEmbedding
 from agno.embedder.openai import OpenAIEmbedder
 
 embedder = OpenAIEmbedder()

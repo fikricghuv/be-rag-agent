@@ -1,9 +1,9 @@
 import psycopg2
-from config.settings import DB_NAME, USER_DB, PASSWORD_DB, HOST, PORT
-from models.knowledge_base_config_schema import KnowledgeBaseConfig
+from core.settings import DB_NAME, USER_DB, PASSWORD_DB, HOST, PORT
+from models.knowledge_base_config_model import KnowledgeBaseConfig
 from fastapi import HTTPException
-from tools.get_knowledge_base_param import get_knowledge_base_config
-from tools.knowledge_base_tools import knowledge_base
+from utils.get_knowledge_base_param import get_knowledge_base_config
+from agents.tools.knowledge_base_tools import knowledge_base
 
 # Fungsi untuk koneksi database
 def get_db_connection():

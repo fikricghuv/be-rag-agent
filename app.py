@@ -3,24 +3,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from routes.delete_file_route import router as delete_file_router
-from routes.embedding_file_route import router as process_embedding_router
-from routes.get_all_files_route import router as get_all_files_router
-from routes.get_chat_history import router as get_chat_history_router
-from routes.get_feedback_route import router as get_feedbacks_router
-from routes.get_prompt_route import router as get_prompts_router
-from routes.send_message_admin_route import router as send_admin_message_router
-from routes.update_prompt_route import router as update_prompt_router
-from routes.upload_file_route import router as upload_file_router
-from routes.get_knowledge_base_config import router as get_knowledge_base_config
-from routes.update_knowledge_base_config_route import router as update_knowledge_base_config_route
-from routes.get_name_from_history_chat import router as get_name_from_history_chat
-from routes.get_chat_from_history_chat import router as get_chat_from_history_chat
-from routes.get_total_chat_from_history_chat import router as get_total_chat_from_history_chat
-from routes.get_total_user_from_history_chat import router as get_total_user_from_history_chat
-from routes.chat_agent import router as chat_agent_router
-from routes.websocket.send_message_user_admin_websocket import router as send_message_from_user_admin_websocket
-from routes.generate_chat_id import router as generate_id_router
+from api.endpoints.delete_file_endpoint import router as delete_file_endpoint
+from api.endpoints.embedding_endpoint import router as embedding_endpoint
+from api.endpoints.files_endpoint import router as files_endpoint
+from api.endpoints.customer_feedback_endpoint import router as customer_feedback_endpoint
+from api.endpoints.upload_endpoint import router as upload_endpoint
+from api.endpoints.knowledge_base_endpoint import router as knowledge_base_endpoint
+from api.endpoints.chat_history_endpoint import router as chat_history_endpoint
+from api.endpoints.chat_stats_endpoint import router as chat_stats_endpoint
+from api.endpoints.chat_agent_endpoint import router as chat_agent_endpoint
+from api.websocket.chat_ws import router as chat_ws
+from api.endpoints.auth_endpoint import router as auth_endpoint
 from starlette.responses import JSONResponse
 
 
@@ -75,24 +68,17 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 
 # Daftarkan route
-app.include_router(delete_file_router)
-app.include_router(process_embedding_router)
-app.include_router(get_all_files_router)
-app.include_router(get_chat_history_router)
-app.include_router(get_feedbacks_router)
-app.include_router(get_prompts_router)
-app.include_router(send_admin_message_router)
-app.include_router(update_prompt_router)
-app.include_router(upload_file_router)
-app.include_router(get_knowledge_base_config)
-app.include_router(update_knowledge_base_config_route)
-app.include_router(get_name_from_history_chat)
-app.include_router(get_chat_from_history_chat)
-app.include_router(get_total_chat_from_history_chat)
-app.include_router(get_total_user_from_history_chat)
-app.include_router(chat_agent_router)
-app.include_router(send_message_from_user_admin_websocket)
-app.include_router(generate_id_router)
+app.include_router(delete_file_endpoint)
+app.include_router(embedding_endpoint)
+app.include_router(files_endpoint)
+app.include_router(customer_feedback_endpoint)
+app.include_router(upload_endpoint)
+app.include_router(knowledge_base_endpoint)
+app.include_router(chat_history_endpoint)
+app.include_router(chat_stats_endpoint)
+app.include_router(chat_agent_endpoint)
+app.include_router(chat_ws)
+app.include_router(auth_endpoint)
 
 
 # Rate limit untuk root endpoint

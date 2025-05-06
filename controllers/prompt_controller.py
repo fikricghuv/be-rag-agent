@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from models.prompt_model import Prompt
-from models.update_prompt_schema import PromptUpdate
+from database.models.prompt_model import Prompt
+from schemas.update_prompt_schema import PromptUpdate
 from typing import List
 
 # Function to update prompt in the database

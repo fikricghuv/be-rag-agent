@@ -1,7 +1,7 @@
 import jwt
 from datetime import datetime, timedelta
 from fastapi import HTTPException
-from config.settings import SECRET_KEY_ADMIN, SECRET_KEY_REFRESH_ADMIN, ALGORITHM
+from core.settings import SECRET_KEY_ADMIN, SECRET_KEY_REFRESH_ADMIN, ALGORITHM
 
 # Simpan sementara refresh tokens
 refresh_tokens = {}

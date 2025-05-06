@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 from fastapi import HTTPException
-from models.chat_history_model import ChatHistory  # Pastikan model ini sudah sesuai
+from database.models.chat_history_model import ChatHistory  # Pastikan model ini sudah sesuai
 
 def get_total_conversations_count(db: Session) -> int:
     try:

@@ -1,12 +1,8 @@
-from sqlalchemy.orm import declarative_base
-from sqlalchemy import Column, Integer, String
+from pydantic import BaseModel
 
-# Model database
-Base = declarative_base()
+class PromptResponse(BaseModel):
+    name: str
+    content: str
 
-# Model Prompt
-class Prompt(Base):
-    __tablename__ = "prompts"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, index=True, nullable=False)
-    content = Column(String, nullable=False)
+class PromptUpdate(BaseModel):
+    content: str
