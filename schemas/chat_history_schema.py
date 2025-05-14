@@ -1,36 +1,38 @@
-from pydantic import BaseModel, field_validator
-from typing import Optional
-from datetime import datetime
+# schemas.py (Pydantic model yang diperbaiki)
+
+import uuid  # Diperlukan untuk tipe UUID
+import datetime
+from typing import Optional, List, Dict, Any # Diperlukan untuk Optional, List, Dict, Any
+from pydantic import BaseModel
+from uuid import UUID
 
 class ChatHistoryResponse(BaseModel):
-    id: int
-    name: str
-    input: str
-    output: Optional[str]
-    error: Optional[str]
-    start_time: datetime
-    latency: float
-    agent_name: Optional[str]
-    chat_category: Optional[str]
-    input_token: Optional[int]
-    output_token: Optional[int]
-    total_token: Optional[int]
+    id: uuid.UUID  # Sesuai dengan Column(Uuid ...)
+    room_conversation_id: uuid.UUID # Sesuai dengan Column(Uuid, ForeignKey ...)
+    sender_id: uuid.UUID # Sesuai dengan Column(Uuid ...)
+    message: str  # Sesuai dengan Column(String ...)
+    created_at: datetime.datetime  # Sesuai dengan Column(DateTime ...)
+    agent_response_category: Optional[str] = None  # Sesuai dengan Column(String ...) nullable
+    agent_response_latency: Optional[datetime.timedelta] = None # Atau Optional[str] jika Anda yakin itu akan jadi string
+    agent_total_tokens: Optional[int] = None # Sesuai dengan Column(Integer ...) nullable
+    agent_input_tokens: Optional[int] = None # Sesuai dengan Column(Integer ...) nullable
+    agent_output_tokens: Optional[int] = None # Sesuai dengan Column(Integer ...) nullable
+    agent_other_metrics: Optional[Dict[str, Any]] = None # Sesuai dengan Column(JSON ...) nullable
+    agent_tools_call: Optional[List[str]] = None # Sesuai dengan Column(ARRAY(String) ...) nullable
 
-    @field_validator("output", "error")
-    def set_default_string(cls, value):
-        return value or ""
-    
-    @field_validator("agent_name")
-    def set_default_name(cls, value):
-        return value or "Unknown"
-    
-    @field_validator("chat_category")
-    def set_default_chat_category(cls, value):
-        return value or "Uncategorized"
-    
-    @field_validator("input_token", "output_token", "total_token")
-    def set_default_token(cls, value):
-        return value or 0
+    model_config = {
+        "from_attributes": True
+    }
 
-    class Config:
-        from_attributes = True
+class UserHistoryResponse(BaseModel):
+    """
+    Respons model untuk riwayat chat user spesifik.
+    """
+    success: bool
+    room_id: UUID # Menggunakan tipe UUID
+    user_id: UUID
+    history: List[ChatHistoryResponse] # Menggunakan list dari ChatHistoryResponse
+
+    model_config = {
+        "from_attributes": True  # <- wajib untuk load dari SQLAlchemy model
+    }

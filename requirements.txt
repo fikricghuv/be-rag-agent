@@ -19,3 +19,4 @@ lancedb
 #search
 baidusearch
 pycountry
+greenlet

@@ -36,10 +36,12 @@ postgres_tools = PostgresTools(
     table_schema=SCHEMA_TABLE
 )
 
-def call_customer_service_agent(session_id, user_id) :
+def call_customer_service_agent(agent_id, session_id, user_id) :
+
     agent = Agent(
         model=openai_model(temperature=0.3, max_tokens=1000),
         # model=gemini_model(),
+        agent_id=agent_id,
         session_id=session_id,
         user_id=user_id,
         knowledge=knowledge_base, 

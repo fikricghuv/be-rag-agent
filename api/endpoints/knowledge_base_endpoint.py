@@ -1,30 +1,85 @@
-from fastapi import APIRouter, HTTPException, Depends
-from services.knowledge_base_service import KnowledgeBaseService
-from models.knowledge_base_config_model import KnowledgeBaseConfig
+# app/api/endpoints/knowledge_base_routes.py
+import logging # Import logging
+from fastapi import APIRouter, Depends, HTTPException, status # Import status
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError # Import SQLAlchemyError
+# Mengimpor dependency service dan API Key
+from services.knowledge_base_service import KnowledgeBaseService, get_knowledge_base_service # Menggunakan service class dan dependency
+from services.verify_api_key_header import api_key_auth # Asumsi dependency api_key_header diimpor dari services.verify_api_key_header
+# Mengimpor Pydantic model konfigurasi
+from schemas.knowledge_base_config_schema import KnowledgeBaseConfig
+from typing import Dict, Any # Diperlukan untuk respons update
 
-router = APIRouter()
+# Konfigurasi logging dasar (sesuaikan dengan setup logging aplikasi Anda)
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-def get_knowledge_base_service() -> KnowledgeBaseService:
-    return KnowledgeBaseService()
+# --- APIRouter Instance ---
+router = APIRouter(
+    tags=["knowledge-base"], # Tag untuk dokumentasi Swagger UI
+)
 
-@router.get("/get-knowledge-base-config")
-def set_knowledge_base_endpoint(knowledge_base_service: KnowledgeBaseService = Depends(get_knowledge_base_service)):
-    """Mengambil konfigurasi dari database dan membuat knowledge base."""
-    try:
-        return knowledge_base_service.retrieve_and_apply_kb_config()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get and apply config: {e}")
-    
-@router.post("/update-knowledge-base")
-def update_config_endpoint(
-    new_config: KnowledgeBaseConfig,
-    knowledge_base_service: KnowledgeBaseService = Depends(get_knowledge_base_service)
+# --- Routes ---
+
+@router.get("/knowledge-base/config", response_model=KnowledgeBaseConfig, dependencies=[Depends(api_key_auth)])
+async def get_knowledge_base_config_endpoint(
+    # Menggunakan dependency untuk mendapatkan instance service
+    knowledge_base_service: KnowledgeBaseService = Depends(get_knowledge_base_service),
+    # current_user: str = Depends(api_key_auth), # Tidak perlu di sini jika sudah di dependencies[]
 ):
-    """Mengupdate konfigurasi di database"""
+    """
+    Endpoint untuk mendapatkan konfigurasi knowledge base dari database.
+    Membutuhkan API Key yang valid di header 'X-API-Key'.
+    """
     try:
-        updated_config = knowledge_base_service.update_knowledge_base_config(new_config)
-        return {"message": "Configuration updated successfully", "config": updated_config}
+        logger.info("Received request to get knowledge base config.")
+        # Memanggil metode service untuk mengambil config dari DB
+        config_model = knowledge_base_service.get_knowledge_base_config_from_db()
+        logger.info("Successfully retrieved knowledge base config.")
+        # Pydantic dengan ORM mode akan mengonversi KnowledgeBaseConfigModel menjadi KnowledgeBaseConfig
+        return config_model
+    # Menangkap HTTPException yang mungkin dilempar oleh service (misalnya 404, 500)
     except HTTPException as e:
+        logger.warning(f"HTTPException raised during get knowledge base config: {e.detail}", exc_info=True)
+        # Re-raise HTTPException agar ditangani oleh FastAPI
         raise e
+    # Menangkap error tak terduga lainnya yang mungkin terjadi di route layer
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update configuration: {str(e)}")
+        logger.error(f"Unexpected error in get_knowledge_base_config_endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"An unexpected error occurred: {str(e)}")
+
+@router.put("/knowledge-base/update-config", response_model=KnowledgeBaseConfig, dependencies=[Depends(api_key_auth)]) # Mengembalikan model config yang diperbarui
+async def update_knowledge_base_config_endpoint( # Mengubah nama fungsi untuk kejelasan
+    # Menerima data konfigurasi baru di request body
+    new_config: KnowledgeBaseConfig,
+    # Menggunakan dependency untuk mendapatkan instance service
+    knowledge_base_service: KnowledgeBaseService = Depends(get_knowledge_base_service)
+    # current_user: str = Depends(api_key_auth), # Tidak perlu di sini jika sudah di dependencies[]
+):
+    """
+    Endpoint untuk memperbarui konfigurasi knowledge base di database.
+    Membutuhkan API Key yang valid di header 'X-API-Key'.
+
+    Args:
+        new_config: Data konfigurasi baru.
+    """
+    try:
+        logger.info(f"Received request to update knowledge base config with: {new_config}")
+        # Memanggil metode service untuk memperbarui config
+        # Service method akan melempar HTTPException (400, 404, atau 500) jika terjadi error
+        updated_config_model = knowledge_base_service.update_knowledge_base_config(new_config)
+
+        # Jika service method berhasil dan tidak melempar exception, kembalikan objek model
+        logger.info("Knowledge base config updated successfully via endpoint.")
+        # Pydantic dengan ORM mode akan mengonversi KnowledgeBaseConfigModel menjadi KnowledgeBaseConfig
+        return updated_config_model
+
+    # Menangkap HTTPException yang mungkin dilempar oleh service (400, 404, 500)
+    except HTTPException as e:
+        logger.warning(f"HTTPException raised during update knowledge base config: {e.detail}", exc_info=True)
+        # Re-raise HTTPException agar ditangani oleh FastAPI
+        raise e
+    # Menangkap error tak terduga lainnya yang mungkin terjadi di route layer
+    except Exception as e:
+        logger.error(f"Unexpected error in update_knowledge_base_config_endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"An unexpected error occurred: {str(e)}")
