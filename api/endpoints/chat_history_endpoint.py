@@ -146,13 +146,14 @@ async def get_user_history_endpoint( # Mengubah nama fungsi untuk konsistensi
     logger.info(f"Received request for history for user {room_id} with offset={offset}, limit={limit}.")
     try:
         result = chat_history_service.get_user_chat_history_by_room_id(room_id, offset=offset, limit=limit)
+        print("result", result)
 
         if not result:
-            raise HTTPException(status_code=404, detail="No chat history or user found for this room.")
+            return []
 
         user_id = result["user_id"]
         history = result["history"]
-        print(f"/n-----------ini user id {user_id}")
+        
         logger.info(f"Returning {len(history)} history entries for room {room_id}.")
 
         return UserHistoryResponse(

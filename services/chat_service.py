@@ -145,8 +145,9 @@ class ChatService:
        agent_output_tokens: int = None,
        agent_other_metrics: dict = None,
        agent_tools_call: List[str] = None,
+       role: str = None
     ):
-        logger.info(f"Saving chat history for room: {room_conversation_id}, sender: {sender_id}")
+        logger.info(f"Saving chat history for room: {room_conversation_id}, sender: {sender_id}, role: {role}")
         chat_history = Chat(
             room_conversation_id=room_conversation_id,
             sender_id=sender_id,
@@ -158,6 +159,7 @@ class ChatService:
             agent_output_tokens=agent_output_tokens,
             agent_other_metrics=agent_other_metrics,
             agent_tools_call=agent_tools_call,
+            role=role
         )
         self.db.add(chat_history)
         try:
@@ -235,8 +237,9 @@ class ChatService:
 
     async def handle_user_message(self, websocket: WebSocket, data: dict, user_id: uuid.UUID, room_id: uuid.UUID, start_time: float):
         message = data.get("message")
+        print(f"Pesan dari user {user_id} di room {room_id}: {message}")
 
-        if not message:
+        if not message or message == None:
             await websocket.send_json({"success": False, "error": "Pesan diperlukan"})
             return
 
@@ -260,7 +263,8 @@ class ChatService:
                  agent_input_tokens=None,
                  agent_output_tokens=None,
                  agent_other_metrics=None,
-                 agent_tools_call=None
+                 agent_tools_call=None,
+                 role="user" 
             )
             logger.info("User message saved.")
             # Kirim pesan user kembali ke user itu sendiri untuk konfirmasi UI
@@ -323,7 +327,8 @@ class ChatService:
                 agent_input_tokens=input_token,
                 agent_output_tokens=output_token,
                 agent_other_metrics=None,
-                agent_tools_call=tools_call
+                agent_tools_call=tools_call,
+                role="chatbot" 
             )
             logger.info("Chatbot response saved.")
 
@@ -373,7 +378,8 @@ class ChatService:
             agent_input_tokens=None,
             agent_output_tokens=None,
             agent_other_metrics=None,
-            agent_tools_call=None
+            agent_tools_call=None,
+            role="chatbot" 
         )
         logger.info(f"Chatbot message saved for room: {room_id}, sender: {sender_id}")
 
@@ -406,36 +412,38 @@ class ChatService:
     async def handle_admin_message(self, websocket: WebSocket, data: dict, sender_id: uuid.UUID, room_id: uuid.UUID):
         # Handler ini untuk pesan chat *biasa* dari admin ke user di room spesifik.
         # Status agent_active diubah oleh pesan type "admin_take_over", bukan di sini.
-        target_user_id_str = data.get("target_user_id")
+        # target_user_id_str = data.get("target_user_id")
         admin_message = data.get("message")
 
-        if not target_user_id_str or not admin_message:
-            await websocket.send_json({"success": False, "error": "Target user ID dan pesan diperlukan"})
-            return
+        # if not target_user_id_str or not admin_message:
+        #     await websocket.send_json({"success": False, "error": "Target user ID dan pesan diperlukan"})
+        #     return
 
-        try:
-            target_user_id = uuid.UUID(target_user_id_str)
-        except ValueError:
-            await websocket.send_json({"success": False, "error": "Format target user ID tidak valid"})
-            return
+        # try:
+        #     target_user_id = uuid.UUID(target_user_id_str)
+        # except ValueError:
+        #     await websocket.send_json({"success": False, "error": "Format target user ID tidak valid"})
+        #     return
 
         try:
             # Periksa apakah target user adalah anggota room yang online
             target_member_result = await self.db.execute(
                 select(Member).where(
                     Member.room_conversation_id == room_id,
-                    Member.user_id == target_user_id,
+                    # Member.user_id == target_user_id,
                     Member.role == "user",
                     Member.is_online == True
                 )
             )
             target_member = target_member_result.scalar_one_or_none()
+            print("target_member", target_member)
 
             if not target_member:
                 await websocket.send_json({"success": False, "error": "User tidak ditemukan atau tidak aktif dalam room ini"})
                 return
 
-            target_conn = await self.get_active_websocket(target_user_id)
+            target_conn = await self.get_active_websocket(target_member.user_id)
+            print("target_conn", target_conn)
             if target_conn:
                 # Simpan pesan admin
                 await self.save_chat_history(
@@ -448,13 +456,15 @@ class ChatService:
                     agent_input_tokens=None,
                     agent_output_tokens=None,
                     agent_other_metrics=None,
-                    agent_tools_call=None
+                    agent_tools_call=None,
+                    role="admin",
                 )
                 # Kirim pesan ke user target
                 await target_conn.send_json({"success": True, "data": admin_message, "from": "admin", "room_id": str(room_id)})
                 # Kirim konfirmasi atau pesan yang sama kembali ke admin yang mengirim
-                await websocket.send_json({"success": True, "message_sent": admin_message, "target_user_id": target_user_id_str, "room_id": str(room_id)})
-                logger.info(f"Pesan admin dari {sender_id} ke user {target_user_id} di room {room_id} berhasil dikirim.")
+                # await websocket.send_json({"success": True, "message_sent": admin_message, "target_user_id": target_user_id_str, "room_id": str(room_id)})
+                await websocket.send_json({"success": True, "message_sent": admin_message, "room_id": str(room_id)})
+                logger.info(f"Pesan admin dari {sender_id} ke room {room_id} berhasil dikirim.")
 
                 # Kirim pesan admin ke admin lain yang sedang melihat room ini
                 await self._send_message_to_associated_admins(

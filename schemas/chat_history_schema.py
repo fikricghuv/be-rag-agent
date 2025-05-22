@@ -19,7 +19,8 @@ class ChatHistoryResponse(BaseModel):
     agent_output_tokens: Optional[int] = None # Sesuai dengan Column(Integer ...) nullable
     agent_other_metrics: Optional[Dict[str, Any]] = None # Sesuai dengan Column(JSON ...) nullable
     agent_tools_call: Optional[List[str]] = None # Sesuai dengan Column(ARRAY(String) ...) nullable
-
+    role: str
+    
     model_config = {
         "from_attributes": True
     }

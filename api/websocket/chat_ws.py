@@ -4,19 +4,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.config_db import get_db
 from services.chat_service import ChatService
 from database.models import RoomConversation, Member, Chat
-from typing import Optional, Dict, Any, List
-import uuid
+from typing import Optional, Dict
 import time
-from datetime import timedelta
 from sqlalchemy.exc import SQLAlchemyError
 from uuid import UUID
 from sqlalchemy.future import select
-import sqlalchemy
 from core.settings import VALID_API_KEYS
 import logging
 
 logger = logging.getLogger(__name__)
-
 
 router = APIRouter()
 
@@ -95,18 +91,7 @@ async def chat_ws(
             except ValueError:
                  print(f"⚠️ Invalid sender_id format: {sender_id_str}")
                  continue
-
-            # Pastikan pengirim pesan cocok dengan koneksi ini (security check dasar)
-          #   if sender_uuid != user_uuid:
-          #        print(f"⚠️ User ID mismatch: connection user {user_uuid}, message sender {sender_uuid}")
-          #        # await websocket.send_json({"error": "User ID di pesan tidak sesuai dengan koneksi."}) # Feedback ke klien jika perlu
-          #        continue
-          #   if sender_role != role:
-          #        print(f"⚠️ Role mismatch: connection role {role}, message sender role {sender_role}")
-          #        # await websocket.send_json({"error": "Role di pesan tidak sesuai dengan koneksi."}) # Feedback ke klien jika perlu
-          #        continue
-
-
+            
             # --- Dispatch Pesan Berdasarkan Tipe dan Role ---
 
             if message_type == "message":
@@ -287,9 +272,7 @@ async def chat_ws(
 
             if role == "admin":
                  await chat_service.remove_admin_room_association(user_uuid) # Hapus asosiasi room jika admin disconnect
-                 # Tidak perlu broadcast active rooms di sini untuk admin disconnect,
-                 # karena status online member admin sudah terupdate di handle_disconnect jika admin adalah member room
-
+                 
             # Untuk user/chatbot, panggil handle_disconnect untuk update is_online
             if room_uuid: # Hanya panggil handle_disconnect jika room_uuid terasosiasi dengan koneksi ini
                  try:

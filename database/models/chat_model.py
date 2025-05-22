@@ -21,6 +21,7 @@ class Chat(Base):
     agent_output_tokens = Column(Integer)
     agent_other_metrics = Column(JSON)
     agent_tools_call = Column(ARRAY(String))
+    role = Column(String(255), nullable=False)
 
     # relationship dengan tabel room_conversation 
     room_conversation = relationship("RoomConversation", back_populates="chats")
