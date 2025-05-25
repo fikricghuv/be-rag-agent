@@ -42,7 +42,7 @@ def prompt_agent():
     - Nilai `created_at` dalam format ISO timestamp
     - Semua data dimasukkan sebagai string yang aman (hindari SQL injection)
     
-    Langkah 2.5: Kirim juga ringkasan keluhan ke tim internal melalui TelegramTools jika perlu ditindaklanjuti segera.
+    Langkah 2.5: Kirim juga ringkasan keluhan ke tim internal melalui TelegramTools.
 
     3. Gaya Komunikasi
     Gunakan bahasa yang:

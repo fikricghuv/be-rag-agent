@@ -1,7 +1,7 @@
 # app/services/customer_feedback_service.py
 import logging # Import logging
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, func 
 from sqlalchemy.exc import SQLAlchemyError # Import SQLAlchemyError
 from typing import List
 # Asumsi model CustomerFeedback diimpor dari database.models.customer_feedback_model
@@ -53,8 +53,24 @@ class CustomerFeedbackService:
             logger.error(f"SQLAlchemy Error fetching customer feedbacks: {e}", exc_info=True)
             raise e # Re-raise SQLAlchemyError
 
-    # Anda bisa menambahkan metode service lain di sini jika diperlukan
-    # Contoh: get_feedback_by_id, create_feedback, update_feedback, delete_feedback
+    def count_total_feedbacks(self) -> int:
+        """
+        Menghitung total jumlah feedback di database.
+
+        Returns:
+            Total jumlah feedback sebagai integer.
+        Raises:
+            SQLAlchemyError: Jika terjadi kesalahan saat berinteraksi dengan database.
+        """
+        try:
+            logger.info("Counting total customer feedbacks.")
+            # Menggunakan func.count() untuk menghitung total baris
+            total_count = self.db.query(func.count(CustomerFeedback.id)).scalar()
+            logger.info(f"Total customer feedbacks found: {total_count}.")
+            return total_count
+        except SQLAlchemyError as e:
+            logger.error(f"SQLAlchemy Error counting total customer feedbacks: {e}", exc_info=True)
+            raise e
 
 # Dependency function untuk menyediakan instance CustomerFeedbackService
 from core.config_db import config_db # Pastikan ini diimpor dengan benar

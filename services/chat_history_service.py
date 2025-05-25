@@ -3,9 +3,11 @@ import uuid
 import logging # Import logging
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import select, func, distinct, desc
+from datetime import datetime
 from sqlalchemy.exc import SQLAlchemyError # Import SQLAlchemyError
 from fastapi import Depends # Diperlukan untuk Depends di dependency function
 from typing import List, Dict, Any
+from collections import defaultdict
 # Asumsi model Chat, RoomConversation, Member diimpor dari database.models
 from database.models import Chat, RoomConversation, Member
 # Asumsi config_db diimpor dari core.config_db
@@ -54,50 +56,7 @@ class ChatHistoryService:
         except SQLAlchemyError as e:
             logger.error(f"SQLAlchemy Error fetching all chat history with pagination: {e}", exc_info=True)
             raise e
-
-    # Metode untuk menghitung total percakapan (sudah instance method)
-    def get_total_conversations(self) -> int:
-        """
-        Menghitung total jumlah RoomConversation. Cocok untuk dashboard.
-
-        Returns:
-            Total count of RoomConversation.
-        Raises:
-            SQLAlchemyError: Jika terjadi kesalahan saat berinteraksi dengan database.
-        """
-        try:
-            logger.info("Counting total conversations.")
-            total_conversations = self.db.query(RoomConversation).count()
-            logger.info(f"Total conversations: {total_conversations}")
-            return total_conversations if total_conversations is not None else 0
-        except SQLAlchemyError as e:
-            logger.error(f"SQLAlchemy Error getting total conversations: {e}", exc_info=True)
-            raise e
-
-    # Metode untuk menghitung total user unik (sudah instance method)
-    def get_total_users(self) -> int:
-        """
-        Menghitung total jumlah user unik berdasarkan user_id di tabel Member.
-        Cocok untuk dashboard.
-
-        Args:
-            db: SQLAlchemy Session object.
-
-        Returns:
-            Total count of unique users.
-        Raises:
-            SQLAlchemyError: Jika terjadi kesalahan saat berinteraksi dengan database.
-        """
-        try:
-            logger.info("Counting total unique users.")
-            # Menggunakan distinct untuk menghitung user_id yang unik
-            total_users = self.db.query(func.count(distinct(Member.user_id))).scalar()
-            logger.info(f"Total unique users: {total_users}")
-            return total_users if total_users is not None else 0
-        except SQLAlchemyError as e:
-            logger.error(f"SQLAlchemy Error getting total users: {e}", exc_info=True)
-            raise e
-
+        
     # Metode untuk menghitung frekuensi kategori (sudah instance method)
     def get_categories_by_frequency(self) -> List[Dict[str, Any]]:
         """
@@ -244,7 +203,151 @@ class ChatHistoryService:
             logger.error(f"Unexpected Error fetching chat history for room {room_id}: {e}", exc_info=True)
             # Re-raise sebagai SQLAlchemyError atau tangani secara spesifik jika bukan DB error
             raise SQLAlchemyError(f"Unexpected error: {e}")
+        
+    def get_total_tokens_used(self) -> float:
+        """
+        Menghitung total jumlah token yang digunakan di seluruh riwayat chat.
+        Menjumlahkan kolom 'agent_total_tokens' dari tabel Chat.
 
+        Returns:
+            Total jumlah token sebagai integer. Mengembalikan 0 jika tidak ada token atau terjadi kesalahan.
+        Raises:
+            SQLAlchemyError: Jika terjadi kesalahan saat berinteraksi dengan database.
+        """
+        try:
+            logger.info("Calculating total tokens used across all chat history.")
+            # Menggunakan func.sum() untuk menjumlahkan kolom agent_total_tokens
+            # .scalar() akan mengambil hasil tunggal dari query (jumlah total)
+            total_tokens = self.db.query(func.sum(Chat.agent_total_tokens)).scalar()
+            
+            # Jika tidak ada chat atau agent_total_tokens adalah NULL, sum akan mengembalikan None
+            # Kita mengembalikan 0 dalam kasus tersebut.
+            result = total_tokens if total_tokens is not None else 0
+            logger.info(f"Total tokens used: {result}")
+            return result
+        except SQLAlchemyError as e:
+            logger.error(f"SQLAlchemy Error calculating total tokens used: {e}", exc_info=True)
+            raise e
+
+    def get_total_conversations(self) -> int:
+        """
+        Menghitung total jumlah percakapan berdasarkan room_conversation_id di tabel Chat.
+
+        Returns:
+            Total count of unique conversations.
+        Raises:
+            SQLAlchemyError: Jika terjadi kesalahan saat berinteraksi dengan database.
+        """
+        try:
+            logger.info("Counting total unique conversations.")
+            # Menggunakan distinct untuk menghitung room_conversation_id yang unik
+            total_conversations = self.db.query(func.count(distinct(Chat.id))).scalar()
+            logger.info(f"Total unique conversations: {total_conversations}")
+            return total_conversations if total_conversations is not None else 0
+        except SQLAlchemyError as e:
+            logger.error(f"SQLAlchemy Error getting total conversations: {e}", exc_info=True)
+            raise e
+        
+    def get_monthly_conversations(self) -> Dict[str, int]:
+        """
+        Mengambil total percakapan per bulan.
+        Percakapan dihitung berdasarkan room_conversation_id unik dari tabel Chat.
+        Mengembalikan dictionary dengan format: {'YYYY-MM': count}
+        Jika bulan tidak ada data, akan diisi dengan 0.
+        """
+        try:
+            logger.info("Getting monthly total conversations.")
+            monthly_conversation_counts_raw = self.db.query(
+                func.to_char(Chat.created_at, 'YYYY-MM').label('month'),
+                func.count(distinct(Chat.id)).label('count')
+            ).group_by('month').order_by('month').all()
+
+            # Inisialisasi dictionary dengan semua bulan dari Januari hingga bulan saat ini
+            current_year = datetime.now().year
+            current_month = datetime.now().month
+            monthly_data = defaultdict(int)
+
+            for i in range(1, current_month + 1):
+                month_str = f"{current_year}-{i:02d}"
+                monthly_data[month_str] = 0 # Default ke 0
+
+            # Isi data dari database
+            for month, count in monthly_conversation_counts_raw:
+                if month in monthly_data: # Hanya tambahkan jika bulan ada di rentang tahun ini
+                    monthly_data[month] = count
+
+            # Urutkan berdasarkan kunci bulan
+            sorted_result = dict(sorted(monthly_data.items()))
+            logger.info(f"Monthly total conversations: {sorted_result}")
+            return sorted_result
+        except SQLAlchemyError as e:
+            logger.error(f"SQLAlchemy Error getting monthly total conversations: {e}", exc_info=True)
+            raise e
+        
+    def get_daily_average_latency_seconds(self):
+        """
+        Mengambil latensi rata-rata harian dalam detik (float).
+        Mengembalikan dictionary dengan format: {'YYYY-MM-DD': avg_latency_seconds}
+        Jika hari tidak ada data, akan diisi dengan 0.0.
+        """
+        try:
+            logger.info("Getting daily average latency in seconds (float).")
+            # Query untuk menghitung rata-rata latensi harian dalam detik
+            daily_latency_raw = self.db.query(
+                func.to_char(Chat.created_at, 'YYYY-MM-DD').label('day'),
+                func.avg(func.extract('epoch', Chat.agent_response_latency)).label('avg_latency_seconds')
+            ).filter(Chat.agent_response_latency.isnot(None)).group_by('day').order_by('day').all()
+
+            current_date = datetime.now().date()
+            daily_data = defaultdict(float) # Gunakan float untuk rata-rata
+
+            # Loop untuk menginisialisasi semua hari dalam bulan berjalan
+            for i in range(1, current_date.day + 1):
+                day_str = f"{current_date.year}-{current_date.month:02d}-{i:02d}"
+                daily_data[day_str] = 0.0 # Default ke 0.0
+
+            for day, avg_latency_seconds in daily_latency_raw:
+                if day in daily_data:
+                    daily_data[day] = round(avg_latency_seconds, 2) # Bulatkan 2 desimal
+
+            sorted_result = dict(sorted(daily_data.items()))
+            logger.info(f"Daily average latency (seconds): {sorted_result}")
+            return sorted_result
+        except SQLAlchemyError as e:
+            logger.error(f"SQLAlchemy Error getting daily average latency in seconds: {e}", exc_info=True)
+            raise e
+
+    def get_monthly_average_latency_seconds(self):
+        """
+        Mengambil latensi rata-rata bulanan dalam detik (float).
+        Mengembalikan dictionary dengan format: {'YYYY-MM': avg_latency_seconds}
+        Jika bulan tidak ada data, akan diisi dengan 0.0.
+        """
+        try:
+            logger.info("Getting monthly average latency in seconds (float).")
+            monthly_latency_raw = self.db.query(
+                func.to_char(Chat.created_at, 'YYYY-MM').label('month'),
+                func.avg(func.extract('epoch', Chat.agent_response_latency)).label('avg_latency_seconds')
+            ).filter(Chat.agent_response_latency.isnot(None)).group_by('month').order_by('month').all()
+
+            current_year = datetime.now().year
+            current_month = datetime.now().month
+            monthly_data = defaultdict(float)
+
+            for i in range(1, current_month + 1):
+                month_str = f"{current_year}-{i:02d}"
+                monthly_data[month_str] = 0.0
+
+            for month, avg_latency_seconds in monthly_latency_raw:
+                if month in monthly_data:
+                    monthly_data[month] = round(avg_latency_seconds, 2)
+
+            sorted_result = dict(sorted(monthly_data.items()))
+            logger.info(f"Monthly average latency (seconds): {sorted_result}")
+            return sorted_result
+        except SQLAlchemyError as e:
+            logger.error(f"SQLAlchemy Error getting monthly average latency in seconds: {e}", exc_info=True)
+            raise e
 
 
 # Dependency function untuk menyediakan instance ChatHistoryService

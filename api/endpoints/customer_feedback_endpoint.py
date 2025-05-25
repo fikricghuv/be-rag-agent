@@ -63,3 +63,23 @@ async def get_feedbacks_endpoint(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An internal server error occurred while fetching customer feedbacks."
         )
+
+@router.get("/feedbacks/total", response_model=int, dependencies=[Depends(api_key_auth)])
+async def get_total_feedbacks_endpoint(
+    customer_feedback_service: CustomerFeedbackService = Depends(get_customer_feedback_service)
+):
+    """
+    Endpoint untuk mendapatkan total jumlah feedback customer.
+    Membutuhkan API Key yang valid di header 'X-API-Key'.
+    """
+    try:
+        logger.info("Received request for total customer feedbacks.")
+        total_feedbacks = customer_feedback_service.count_total_feedbacks()
+        logger.info(f"Returning total feedback count: {total_feedbacks}.")
+        return total_feedbacks
+    except SQLAlchemyError as e:
+        logger.error(f"Database error in get_total_feedbacks_endpoint: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An internal server error occurred while fetching the total number of customer feedbacks."
+        )
