@@ -15,6 +15,7 @@ from database.models import Chat, RoomConversation, Member
 from core.config_db import config_db
 from sqlalchemy import TEXT, Text
 from dateutil.relativedelta import relativedelta
+from dateutil.relativedelta import relativedelta, SU
 
 # Konfigurasi logging dasar (sesuaikan dengan setup logging aplikasi Anda)
 logging.basicConfig(level=logging.INFO)
@@ -33,7 +34,58 @@ class ChatHistoryService:
         """
         self.db = db
     
-    def _get_conversation_counts_by_period(self, group_format: str, start_date: datetime, end_date: datetime) -> Dict[str, int]:
+    # def _get_conversation_counts_by_period(self, group_format: str, start_date: datetime, end_date: datetime) -> Dict[str, int]:
+    #     try:
+    #         if self.db.bind.name == 'postgresql':
+    #             period_expr = func.to_char(Chat.created_at, group_format)
+    #         elif self.db.bind.name == 'mysql':
+    #             period_expr = func.date_format(Chat.created_at, group_format)
+    #         else:  # SQLite
+    #             period_expr = func.strftime(group_format, Chat.created_at)
+    #
+    #         query = self.db.query(
+    #             period_expr.label("period"),
+    #             func.count(distinct(Chat.id)).label("total_conversations")
+    #         ).filter(
+    #             Chat.created_at >= start_date,
+    #             Chat.created_at <= end_date
+    #         ).group_by("period").all()
+    #
+    #         return {row.period: row.total_conversations for row in query}
+    #     except SQLAlchemyError as e:
+    #         logger.error(f"SQLAlchemy Error getting conversation counts by period: {e}", exc_info=True)
+    #         raise e
+    #
+    # def get_conversations_by_week(self) -> Dict[str, int]:
+    #     today = datetime.now()
+    #     start_of_current_week = today - timedelta(days=today.weekday())
+    #     start_date = start_of_current_week - timedelta(weeks=11)
+    #     end_date = today.replace(hour=23, minute=59, second=59, microsecond=999999)
+    #
+    #     db_group_format = {
+    #         'postgresql': 'IYYY-IW',
+    #         'mysql': '%X-%v',     # ISO year-week
+    #         'sqlite': '%Y-%W'
+    #     }.get(self.db.bind.name, '%Y-%W')
+    #
+    #     py_group_format = '%G-%V' if self.db.bind.name == 'postgresql' else '%Y-%W'
+    #
+    #     raw_data = self._get_conversation_counts_by_period(db_group_format, start_date, end_date)
+    #
+    #     result = {}
+    #     for i in range(12):
+    #         week_date = start_date + timedelta(weeks=i)
+    #         week_key = week_date.strftime(py_group_format)
+    #         result[week_key] = raw_data.get(week_key, 0)
+    #
+    #     return result
+
+    def _get_conversation_counts_by_period(self, group_format: str, start_date: datetime, end_date: datetime) -> Dict[
+        str, int]:
+        """
+        Helper private untuk mendapatkan jumlah percakapan berdasarkan format grup periode.
+        Digunakan oleh metode weekly, monthly, yearly.
+        """
         try:
             if self.db.bind.name == 'postgresql':
                 period_expr = func.to_char(Chat.created_at, group_format)
@@ -42,7 +94,7 @@ class ChatHistoryService:
             else:  # SQLite
                 period_expr = func.strftime(group_format, Chat.created_at)
 
-            query = self.db.query(
+            query_results = self.db.query(
                 period_expr.label("period"),
                 func.count(distinct(Chat.id)).label("total_conversations")
             ).filter(
@@ -50,34 +102,57 @@ class ChatHistoryService:
                 Chat.created_at <= end_date
             ).group_by("period").all()
 
-            return {row.period: row.total_conversations for row in query}
+            return {row.period: row.total_conversations for row in query_results}
         except SQLAlchemyError as e:
             logger.error(f"SQLAlchemy Error getting conversation counts by period: {e}", exc_info=True)
             raise e
 
     def get_conversations_by_week(self) -> Dict[str, int]:
+        """
+        Mendapatkan jumlah percakapan per minggu (ISO Week),
+        dengan kunci berupa tanggal Minggu terakhir dari minggu tersebut (YYYY-MM-DD).
+        """
+        final_weekly_stats: Dict[str, int] = {}
         today = datetime.now()
-        start_of_current_week = today - timedelta(days=today.weekday())
-        start_date = start_of_current_week - timedelta(weeks=11)
-        end_date = today.replace(hour=23, minute=59, second=59, microsecond=999999)
 
-        db_group_format = {
-            'postgresql': 'IYYY-IW',
-            'mysql': '%X-%v',     # ISO year-week
-            'sqlite': '%Y-%W'
-        }.get(self.db.bind.name, '%Y-%W')
+        # Tentukan rentang tanggal untuk query database (12 minggu terakhir)
+        # Kita ingin 12 minggu penuh, jadi mulai dari Minggu 12 minggu yang lalu
+        start_date_for_query = today + relativedelta(weeks=-12, weekday=SU(-1))
+        end_date_for_query = today.replace(hour=23, minute=59, second=59, microsecond=999999)
 
-        py_group_format = '%G-%V' if self.db.bind.name == 'postgresql' else '%Y-%W'
+        # Tetap gunakan format ISO week ('IYYY-IW') untuk PostgreSQL di DB query
+        # karena itu yang akan dikembalikan oleh database.
+        db_group_format = 'IYYY-IW'
 
-        raw_data = self._get_conversation_counts_by_period(db_group_format, start_date, end_date)
+        # Ambil data mentah dari database dalam format 'YYYY-IW'
+        raw_data_iso_week = self._get_conversation_counts_by_period(db_group_format, start_date_for_query,
+                                                                    end_date_for_query)
 
-        result = {}
-        for i in range(12):
-            week_date = start_date + timedelta(weeks=i)
-            week_key = week_date.strftime(py_group_format)
-            result[week_key] = raw_data.get(week_key, 0)
+        # Iterasi melalui 12 minggu terakhir untuk membangun dictionary hasil akhir
+        # Kita perlu mengidentifikasi setiap minggu dan tanggal Minggunya
 
-        return result
+        # Temukan tanggal Minggu pertama dari rentang 12 minggu terakhir yang akan ditampilkan.
+        # Ini akan menjadi titik awal loop kita.
+        first_sunday_in_range = today + relativedelta(weeks=-11, weekday=SU)
+
+        for i in range(12):  # Untuk 12 minggu
+            # Hitung tanggal Minggu saat ini dalam iterasi
+            current_sunday = first_sunday_in_range + timedelta(weeks=i)
+
+            # Dapatkan ISO week (tahun dan nomor minggu) dari tanggal Minggu ini.
+            # Ini adalah kunci yang cocok dengan raw_data dari database.
+            iso_year, iso_week, _ = current_sunday.isocalendar()
+            week_key_iso = f"{iso_year}-{iso_week:02d}"
+
+            # Format kunci yang diinginkan untuk output (tanggal Minggu)
+            final_date_key = current_sunday.strftime('%Y-%m-%d')
+
+            # Ambil jumlah percakapan dari raw_data_iso_week; jika tidak ada, default ke 0
+            final_weekly_stats[final_date_key] = raw_data_iso_week.get(week_key_iso, 0)
+
+        # Urutkan kunci akhir berdasarkan tanggal untuk memastikan urutan kronologis
+        sorted_keys = sorted(final_weekly_stats.keys())
+        return {k: final_weekly_stats[k] for k in sorted_keys}
 
     def get_conversations_by_month(self) -> Dict[str, int]:
         today = datetime.now()
@@ -138,7 +213,60 @@ class ChatHistoryService:
             )
         )
 
-    def _get_escalation_counts_by_period(self, group_format: str, start_date: datetime, end_date: datetime) -> Dict[str, int]:
+    # def _get_escalation_counts_by_period(self, group_format: str, start_date: datetime, end_date: datetime) -> Dict[str, int]:
+    #     """
+    #     Helper private untuk mendapatkan jumlah eskalasi berdasarkan format grup periode.
+    #     Digunakan oleh metode weekly, monthly, yearly.
+    #     """
+    #     try:
+    #         if self.db.bind.name == 'postgresql':
+    #             period_expr = func.to_char(Chat.created_at, group_format)
+    #         elif self.db.bind.name == 'mysql':
+    #             period_expr = func.date_format(Chat.created_at, group_format)
+    #         else:  # SQLite
+    #             period_expr = func.strftime(group_format, Chat.created_at)
+    #
+    #         # Query utama untuk menghitung eskalasi
+    #         query = self.db.query(
+    #             period_expr.label("period"),
+    #             func.count(distinct(Chat.id)).label("total_escalations")
+    #         ).filter(
+    #             Chat.created_at >= start_date,
+    #             Chat.created_at <= end_date,
+    #             self._get_escalation_condition() # Kondisi eskalasi
+    #         ).group_by("period").all()
+    #
+    #         result_dict = {row.period: row.total_escalations for row in query}
+    #         return result_dict
+    #     except SQLAlchemyError as e:
+    #         logger.error(f"SQLAlchemy Error getting escalation counts by period: {e}", exc_info=True)
+    #         raise e
+    #
+    # def get_weekly_escalation_count(self) -> Dict[str, int]:
+    #     final_weekly_stats: Dict[str, int] = {}
+    #     today = datetime.now()
+    #
+    #     # Ambil Senin minggu ini
+    #     start_of_this_week = today - timedelta(days=today.weekday())
+    #     start_date_for_query = start_of_this_week - timedelta(weeks=11)
+    #     end_date_for_query = today.replace(hour=23, minute=59, second=59, microsecond=999999)
+    #
+    #     db_group_format = 'IYYY-IW'  # Gunakan ISO week format di PostgreSQL
+    #
+    #     raw_data = self._get_escalation_counts_by_period(db_group_format, start_date_for_query, end_date_for_query)
+    #
+    #     for i in range(12):
+    #         target_date = start_date_for_query + timedelta(weeks=i)
+    #         # Gunakan ISO week juga di Python
+    #         iso_year, iso_week, _ = target_date.isocalendar()
+    #         week_key = f"{iso_year}-{iso_week:02d}"
+    #         final_weekly_stats[week_key] = raw_data.get(week_key, 0)
+    #
+    #     sorted_keys = sorted(final_weekly_stats.keys())
+    #     return {k: final_weekly_stats[k] for k in sorted_keys}
+
+    def _get_escalation_counts_by_period(self, group_format: str, start_date: datetime, end_date: datetime) -> Dict[
+        str, int]:
         """
         Helper private untuk mendapatkan jumlah eskalasi berdasarkan format grup periode.
         Digunakan oleh metode weekly, monthly, yearly.
@@ -152,40 +280,66 @@ class ChatHistoryService:
                 period_expr = func.strftime(group_format, Chat.created_at)
 
             # Query utama untuk menghitung eskalasi
-            query = self.db.query(
+            query_results = self.db.query(
                 period_expr.label("period"),
                 func.count(distinct(Chat.id)).label("total_escalations")
             ).filter(
                 Chat.created_at >= start_date,
                 Chat.created_at <= end_date,
-                self._get_escalation_condition() # Kondisi eskalasi
-            ).group_by("period").all()
+                self._get_escalation_condition()  # Kondisi eskalasi Anda
+            ).group_by("period").all()  # .all() akan mengeksekusi query
 
-            result_dict = {row.period: row.total_escalations for row in query}
+            # Mengonversi hasil query SQLAlchemy ke dictionary
+            result_dict = {row.period: row.total_escalations for row in query_results}
             return result_dict
         except SQLAlchemyError as e:
             logger.error(f"SQLAlchemy Error getting escalation counts by period: {e}", exc_info=True)
             raise e
 
     def get_weekly_escalation_count(self) -> Dict[str, int]:
+        """
+        Mendapatkan data eskalasi per minggu (ISO Week),
+        dengan kunci berupa tanggal Minggu terakhir dari minggu tersebut (YYYY-MM-DD).
+        """
         final_weekly_stats: Dict[str, int] = {}
         today = datetime.now()
 
-        # Ambil Senin minggu ini
-        start_of_this_week = today - timedelta(days=today.weekday())
-        start_date_for_query = start_of_this_week - timedelta(weeks=11)
+        # Tentukan rentang tanggal untuk query database (12 minggu terakhir)
+        # Kita ingin 12 minggu penuh, jadi mulai dari Senin 12 minggu yang lalu
+        # dan berakhir di akhir hari ini.
+        start_date_for_query = today + relativedelta(weeks=-12, weekday=SU(-1))  # Minggu 12 minggu lalu
+        # start_date_for_query = today + relativedelta(weeks=-12, weekday=MO(-1)) # Atau Senin 12 minggu lalu
         end_date_for_query = today.replace(hour=23, minute=59, second=59, microsecond=999999)
 
-        db_group_format = 'IYYY-IW'  # Gunakan ISO week format di PostgreSQL
+        # Tetap gunakan format ISO week untuk query database, karena itu yang dikembalikan oleh DB
+        db_group_format = 'IYYY-IW'
 
-        raw_data = self._get_escalation_counts_by_period(db_group_format, start_date_for_query, end_date_for_query)
+        # Ambil data mentah dari database dalam format 'YYYY-IW'
+        raw_data_iso_week = self._get_escalation_counts_by_period(db_group_format, start_date_for_query,
+                                                                  end_date_for_query)
 
-        for i in range(12):
-            target_date = start_date_for_query + timedelta(weeks=i)
-            # Gunakan ISO week juga di Python
-            iso_year, iso_week, _ = target_date.isocalendar()
-            week_key = f"{iso_year}-{iso_week:02d}"
-            final_weekly_stats[week_key] = raw_data.get(week_key, 0)
+        # Iterasi melalui 12 minggu terakhir untuk membangun dictionary hasil akhir
+        # Kita perlu mengidentifikasi setiap minggu dan tanggal Minggunya
+
+        # Temukan tanggal Minggu pertama dari rentang 12 minggu terakhir
+        # Ini akan menjadi titik awal loop kita
+        first_sunday_in_range = today + relativedelta(weeks=-11, weekday=SU)  # Minggu 11 minggu lalu
+
+        for i in range(12):  # Untuk 12 minggu
+            # Hitung tanggal Minggu saat ini dalam iterasi
+            current_sunday = first_sunday_in_range + timedelta(weeks=i)
+
+            # Dapatkan ISO week (tahun dan nomor minggu) dari tanggal Minggu ini
+            iso_year, iso_week, _ = current_sunday.isocalendar()
+
+            # Buat kunci format ISO week yang sesuai dengan raw_data dari database
+            week_key_iso = f"{iso_year}-{iso_week:02d}"
+
+            # Format kunci yang diinginkan untuk output (tanggal Minggu)
+            final_date_key = current_sunday.strftime('%Y-%m-%d')
+
+            # Ambil jumlah eskalasi dari raw_data_iso_week; jika tidak ada, default ke 0
+            final_weekly_stats[final_date_key] = raw_data_iso_week.get(week_key_iso, 0)
 
         sorted_keys = sorted(final_weekly_stats.keys())
         return {k: final_weekly_stats[k] for k in sorted_keys}
