@@ -144,15 +144,20 @@ class ChatHistoryService:
         Digunakan oleh metode weekly, monthly, yearly.
         """
         try:
+            if self.db.bind.name == 'postgresql':
+                period_expr = func.to_char(Chat.created_at, group_format)
+            elif self.db.bind.name == 'mysql':
+                period_expr = func.date_format(Chat.created_at, group_format)
+            else:  # SQLite
+                period_expr = func.strftime(group_format, Chat.created_at)
+
             # Query utama untuk menghitung eskalasi
             query = self.db.query(
-                func.to_char(Chat.created_at, group_format).label("period"), # to_char untuk PostgreSQL
-                func.count(Chat.id).label("total_escalations")
+                period_expr.label("period"),
+                func.count(distinct(Chat.id)).label("total_escalations")
             ).filter(
                 Chat.created_at >= start_date,
                 Chat.created_at <= end_date,
-                Chat.agent_tools_call.isnot(None), # Pastikan array tidak null
-                func.cardinality(Chat.agent_tools_call) > 0, # Pastikan array tidak kosong
                 self._get_escalation_condition() # Kondisi eskalasi
             ).group_by("period").all()
 
@@ -187,28 +192,30 @@ class ChatHistoryService:
 
 
     def get_monthly_escalation_count(self) -> Dict[str, int]:
-        final_monthly_stats: Dict[str, int] = {}
         today = datetime.now()
+        start_date = (today.replace(day=1) - timedelta(days=365)).replace(day=1)
+        end_date = today.replace(hour=23, minute=59, second=59, microsecond=999999)
 
-        # Awal bulan ini
-        start_of_current_month = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        # Ambil awal 12 bulan lalu
-        start_date_for_query = start_of_current_month - relativedelta(months=11)
-        # Akhir bulan ini
-        end_date_for_query = today.replace(hour=23, minute=59, second=59, microsecond=999999)
-
-        db_group_format = 'YYYY-MM'
-        raw_data = self._get_escalation_counts_by_period(db_group_format, start_date_for_query, end_date_for_query)
+        db_group_format = {
+            'postgresql': 'YYYY-MM',
+            'mysql': '%Y-%m',
+            'sqlite': '%Y-%m'
+        }.get(self.db.bind.name, '%Y-%m')
+        
+        raw_data = self._get_escalation_counts_by_period(db_group_format, start_date, end_date)
+        
         logger.debug(f"Raw escalation data from DB: {raw_data}")
+        
+        result = {}
+        for i in range(12):
+            month_date = (today.replace(day=1) - timedelta(days=30 * (11 - i)))
+            accurate_month = (today.month - 11 + i - 1) % 12 + 1
+            accurate_year = today.year + ((today.month - 11 + i - 1) // 12)
+            month_date = datetime(accurate_year, accurate_month, 1)
+            month_key = month_date.strftime('%Y-%m')
+            result[month_key] = raw_data.get(month_key, 0)
 
-        # Iterasi 12 bulan dari start_date
-        current_month_iter = start_date_for_query.replace(day=1)
-        for _ in range(12):
-            month_key = current_month_iter.strftime('%Y-%m')
-            final_monthly_stats[month_key] = raw_data.get(month_key, 0)
-            current_month_iter += relativedelta(months=1)
-
-        return dict(sorted(final_monthly_stats.items()))
+        return result
 
 
     def get_yearly_escalation_count(self) -> Dict[str, int]:
@@ -548,7 +555,7 @@ class ChatHistoryService:
             logger.error(f"SQLAlchemy Error getting monthly average latency in seconds: {e}", exc_info=True)
             raise e
         
-    def get_monthly_escalation_count(self):
+    def get_escalation_by_month(self):
         """
         Menghitung total eskalasi bulanan berdasarkan kemunculan 'INSERT INTO ai.customer_feedback'
         di dalam elemen array 'agent_tools_call' pada tabel 'chats'.

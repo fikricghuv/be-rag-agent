@@ -214,7 +214,7 @@ async def get_monthly_escalation_count_endpoint(
     """
     try:
         logger.info("Received request for monthly escalation count.")
-        monthly_escalation_data = chat_history_service.get_monthly_escalation_count()
+        monthly_escalation_data = chat_history_service.get_escalation_by_month()
         logger.info(f"Returning monthly escalation count data: {monthly_escalation_data}")
         return monthly_escalation_data
     except SQLAlchemyError as e:

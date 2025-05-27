@@ -2,18 +2,17 @@ from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
-from api.endpoints.files_endpoint import router as files_endpoint
-from api.endpoints.customer_feedback_endpoint import router as customer_feedback_endpoint
-from api.endpoints.knowledge_base_endpoint import router as knowledge_base_endpoint
-from api.endpoints.chat_history_endpoint import router as chat_history_endpoint
-from api.endpoints.auth_endpoint import router as auth_endpoint
-from api.endpoints.room_endpoint import router as room_endpoint
-from api.endpoints.dashboard_endpoint import router as dashboard_endpoint
-from api.endpoints.prompt_endpoint import router as prompt_endpoint
-from api.websocket.chat_ws import router as chat_ws
 from starlette.responses import JSONResponse
 
+from api.endpoints.auth_endpoint import router as auth_endpoint
+from api.endpoints.chat_history_endpoint import router as chat_history_endpoint
+from api.endpoints.customer_feedback_endpoint import router as customer_feedback_endpoint
+from api.endpoints.dashboard_endpoint import router as dashboard_endpoint
+from api.endpoints.files_endpoint import router as files_endpoint
+from api.endpoints.knowledge_base_endpoint import router as knowledge_base_endpoint
+from api.endpoints.prompt_endpoint import router as prompt_endpoint
+from api.endpoints.room_endpoint import router as room_endpoint
+from api.websocket.chat_ws import router as chat_ws
 
 # Inisialisasi aplikasi dan limiter
 app = FastAPI()
@@ -30,8 +29,8 @@ app.state.admin_room_associations = {}
 # Middleware CORS
 app.add_middleware(
     CORSMiddleware,
-    # allow_origins=["http://localhost:4200", "http://localhost:52266"],
-    allow_origins=["*"], 
+    allow_origins=["http://localhost:4200", "http://localhost:4201"],
+    # allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
