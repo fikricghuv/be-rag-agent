@@ -26,7 +26,7 @@ class CustomerFeedbackService:
         self.db = db
 
     # Mengubah menjadi instance method dan menambahkan parameter pagination
-    def fetch_all_feedbacks(self, offset: int = 0, limit: int = 100) -> List[CustomerFeedback]:
+    def fetch_all_feedbacks(self, offset: int, limit: int) -> List[CustomerFeedback]:
         """
         Mengambil data feedback dari database dengan pagination.
 

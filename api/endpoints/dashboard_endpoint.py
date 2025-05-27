@@ -201,3 +201,171 @@ async def get_monthly_average_latency_endpoint(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An internal server error occurred while fetching monthly average latency."
         )
+
+@router.get("/stats/monthly-escalations", response_model=Dict[str, int], dependencies=[Depends(api_key_auth)])
+async def get_monthly_escalation_count_endpoint(
+    chat_history_service: ChatHistoryService = Depends(get_chat_history_service),
+):
+    """
+    Endpoint untuk mendapatkan total eskalasi bulanan.
+    Eskalasi diidentifikasi jika agent memanggil tool untuk menyimpan data feedback pelanggan.
+    Mengembalikan data untuk setiap bulan dari Januari hingga bulan saat ini, dengan 0 jika tidak ada data.
+    Membutuhkan API Key yang valid di header 'X-API-Key'.
+    """
+    try:
+        logger.info("Received request for monthly escalation count.")
+        monthly_escalation_data = chat_history_service.get_monthly_escalation_count()
+        logger.info(f"Returning monthly escalation count data: {monthly_escalation_data}")
+        return monthly_escalation_data
+    except SQLAlchemyError as e:
+        logger.error(f"Database error in get_monthly_escalation_count_endpoint: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An internal server error occurred while fetching monthly escalation count."
+        )
+        
+@router.get("/stats/monthly-tokens-usage", response_model=Dict[str, float], dependencies=[Depends(api_key_auth)])
+async def get_monthly_tokens_usage_endpoint(
+    chat_history_service: ChatHistoryService = Depends(get_chat_history_service)
+):
+    """
+    Endpoint untuk mendapatkan total penggunaan token per bulan selama tahun berjalan (untuk dashboard).
+    Membutuhkan API Key yang valid di header 'X-API-Key'.
+    """
+    try:
+        logger.info("Received request for monthly tokens usage.")
+        monthly_tokens_data = chat_history_service.get_monthly_tokens_used()
+        logger.info(f"Returning monthly tokens usage data: {monthly_tokens_data}")
+        return monthly_tokens_data
+    except SQLAlchemyError as e:
+        logger.error(f"Database error in get_monthly_tokens_usage_endpoint: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An internal server error occurred while fetching monthly tokens usage."
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error in get_monthly_tokens_usage_endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"An unexpected error occurred: {str(e)}")
+    
+@router.get("/stats/conversations/weekly", response_model=Dict[str, int], dependencies=[Depends(api_key_auth)])
+async def get_weekly_conversations_api(
+    chat_history_service: ChatHistoryService = Depends(get_chat_history_service)
+):
+    """
+    Mengambil total percakapan unik untuk 12 minggu terakhir.
+    Mengembalikan dictionary dengan format {'YYYY-WW': total_conversations}.
+    """
+    try:
+        logger.info("Received request for weekly total conversations.")
+        weekly_data = chat_history_service.get_conversations_by_week()
+        logger.info(f"Returning weekly conversation data: {weekly_data}")
+        return weekly_data
+    except SQLAlchemyError as e:
+        logger.error(f"Database error in get_weekly_conversations_api: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch weekly conversation statistics."
+        )
+
+@router.get("/stats/conversations/monthly", response_model=Dict[str, int], dependencies=[Depends(api_key_auth)])
+async def get_monthly_conversations_api(
+    chat_history_service: ChatHistoryService = Depends(get_chat_history_service)
+):
+    """
+    Mengambil total percakapan unik untuk 12 bulan terakhir.
+    Mengembalikan dictionary dengan format {'YYYY-MM': total_conversations}.
+    """
+    try:
+        logger.info("Received request for monthly total conversations.")
+        monthly_data = chat_history_service.get_conversations_by_month()
+        logger.info(f"Returning monthly conversation data: {monthly_data}")
+        return monthly_data
+    except SQLAlchemyError as e:
+        logger.error(f"Database error in get_monthly_conversations_api: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch monthly conversation statistics."
+        )
+
+@router.get("/stats/conversations/yearly", response_model=Dict[str, int], dependencies=[Depends(api_key_auth)])
+async def get_yearly_conversations_api(
+    chat_history_service: ChatHistoryService = Depends(get_chat_history_service)
+):
+    """
+    Mengambil total percakapan unik untuk 6 tahun terakhir.
+    Mengembalikan dictionary dengan format {'YYYY': total_conversations}.
+    """
+    try:
+        logger.info("Received request for yearly total conversations.")
+        yearly_data = chat_history_service.get_conversations_by_year()
+        logger.info(f"Returning yearly conversation data: {yearly_data}")
+        return yearly_data
+    except SQLAlchemyError as e:
+        logger.error(f"Database error in get_yearly_conversations_api: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch yearly conversation statistics."
+        )
+
+@router.get("/stats/escalations/weekly", response_model=Dict[str, int], dependencies=[Depends(api_key_auth)])
+async def get_weekly_escalations_api(
+    chat_history_service: ChatHistoryService = Depends(get_chat_history_service)
+):
+    """
+    Mengambil total eskalasi unik untuk 12 minggu terakhir.
+    Eskalasi diidentifikasi jika agent memanggil tool untuk menyimpan data feedback pelanggan.
+    Mengembalikan dictionary dengan format {'YYYY-WW': total_escalations}.
+    """
+    try:
+        logger.info("Received request for weekly escalations.")
+        weekly_data = chat_history_service.get_weekly_escalation_count()
+        logger.info(f"Returning weekly escalation data: {weekly_data}")
+        return weekly_data
+    except SQLAlchemyError as e:
+        logger.error(f"Database error in get_weekly_escalations_api: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch weekly escalation statistics."
+        )
+
+@router.get("/stats/escalations/monthly", response_model=Dict[str, int], dependencies=[Depends(api_key_auth)])
+async def get_monthly_escalations_api(
+    chat_history_service: ChatHistoryService = Depends(get_chat_history_service)
+):
+    """
+    Mengambil total eskalasi unik untuk 12 bulan terakhir.
+    Eskalasi diidentifikasi jika agent memanggil tool untuk menyimpan data feedback pelanggan.
+    Mengembalikan dictionary dengan format {'YYYY-MM': total_escalations}.
+    """
+    try:
+        logger.info("Received request for monthly escalations.")
+        monthly_data = chat_history_service.get_monthly_escalation_count()
+        logger.info(f"Returning monthly escalation data: {monthly_data}")
+        return monthly_data
+    except SQLAlchemyError as e:
+        logger.error(f"Database error in get_monthly_escalations_api: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch monthly escalation statistics."
+        )
+
+@router.get("/stats/escalations/yearly", response_model=Dict[str, int], dependencies=[Depends(api_key_auth)])
+async def get_yearly_escalations_api(
+    chat_history_service: ChatHistoryService = Depends(get_chat_history_service)
+):
+    """
+    Mengambil total eskalasi unik untuk 6 tahun terakhir.
+    Eskalasi diidentifikasi jika agent memanggil tool untuk menyimpan data feedback pelanggan.
+    Mengembalikan dictionary dengan format {'YYYY': total_escalations}.
+    """
+    try:
+        logger.info("Received request for yearly escalations.")
+        yearly_data = chat_history_service.get_yearly_escalation_count()
+        logger.info(f"Returning yearly escalation data: {yearly_data}")
+        return yearly_data
+    except SQLAlchemyError as e:
+        logger.error(f"Database error in get_yearly_escalations_api: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch yearly escalation statistics."
+        )

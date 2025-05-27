@@ -28,7 +28,7 @@ class RoomService:
         self.db = db
 
     # Metode untuk mengambil semua room dengan pagination
-    def get_all_rooms(self, offset: int = 0, limit: int = 100) -> List[RoomConversation]:
+    def get_all_rooms(self, offset: int, limit: int) -> List[RoomConversation]:
         """
         Mengambil semua data RoomConversation dengan pagination.
         Cocok untuk tampilan admin.
@@ -58,7 +58,7 @@ class RoomService:
 
     # --- Metode Baru: Mengambil hanya active room dengan pagination ---
     # Asumsi ada kolom 'status' di model RoomConversation dan nilai 'active' menandakan room aktif
-    def get_active_rooms(self, offset: int = 0, limit: int = 100) -> List[RoomConversation]:
+    def get_active_rooms(self, offset: int, limit: int) -> List[RoomConversation]:
         """
         Mengambil data RoomConversation yang aktif dengan pagination.
 

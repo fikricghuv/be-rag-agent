@@ -2,8 +2,9 @@
 import uuid
 import logging # Import logging
 from sqlalchemy.orm import Session
-from sqlalchemy.sql import select, func, distinct, desc
-from datetime import datetime
+from sqlalchemy import func, select, literal_column, column, extract
+from sqlalchemy.sql import select, func, distinct, desc, exists
+from datetime import datetime, timedelta
 from sqlalchemy.exc import SQLAlchemyError # Import SQLAlchemyError
 from fastapi import Depends # Diperlukan untuk Depends di dependency function
 from typing import List, Dict, Any
@@ -12,6 +13,8 @@ from collections import defaultdict
 from database.models import Chat, RoomConversation, Member
 # Asumsi config_db diimpor dari core.config_db
 from core.config_db import config_db
+from sqlalchemy import TEXT, Text
+from dateutil.relativedelta import relativedelta
 
 # Konfigurasi logging dasar (sesuaikan dengan setup logging aplikasi Anda)
 logging.basicConfig(level=logging.INFO)
@@ -29,9 +32,205 @@ class ChatHistoryService:
             db: SQLAlchemy Session object.
         """
         self.db = db
+    
+    def _get_conversation_counts_by_period(self, group_format: str, start_date: datetime, end_date: datetime) -> Dict[str, int]:
+        try:
+            if self.db.bind.name == 'postgresql':
+                period_expr = func.to_char(Chat.created_at, group_format)
+            elif self.db.bind.name == 'mysql':
+                period_expr = func.date_format(Chat.created_at, group_format)
+            else:  # SQLite
+                period_expr = func.strftime(group_format, Chat.created_at)
+
+            query = self.db.query(
+                period_expr.label("period"),
+                func.count(distinct(Chat.id)).label("total_conversations")
+            ).filter(
+                Chat.created_at >= start_date,
+                Chat.created_at <= end_date
+            ).group_by("period").all()
+
+            return {row.period: row.total_conversations for row in query}
+        except SQLAlchemyError as e:
+            logger.error(f"SQLAlchemy Error getting conversation counts by period: {e}", exc_info=True)
+            raise e
+
+    def get_conversations_by_week(self) -> Dict[str, int]:
+        today = datetime.now()
+        start_of_current_week = today - timedelta(days=today.weekday())
+        start_date = start_of_current_week - timedelta(weeks=11)
+        end_date = today.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+        db_group_format = {
+            'postgresql': 'IYYY-IW',
+            'mysql': '%X-%v',     # ISO year-week
+            'sqlite': '%Y-%W'
+        }.get(self.db.bind.name, '%Y-%W')
+
+        py_group_format = '%G-%V' if self.db.bind.name == 'postgresql' else '%Y-%W'
+
+        raw_data = self._get_conversation_counts_by_period(db_group_format, start_date, end_date)
+
+        result = {}
+        for i in range(12):
+            week_date = start_date + timedelta(weeks=i)
+            week_key = week_date.strftime(py_group_format)
+            result[week_key] = raw_data.get(week_key, 0)
+
+        return result
+
+    def get_conversations_by_month(self) -> Dict[str, int]:
+        today = datetime.now()
+        start_date = (today.replace(day=1) - timedelta(days=365)).replace(day=1)
+        end_date = today.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+        db_group_format = {
+            'postgresql': 'YYYY-MM',
+            'mysql': '%Y-%m',
+            'sqlite': '%Y-%m'
+        }.get(self.db.bind.name, '%Y-%m')
+
+        raw_data = self._get_conversation_counts_by_period(db_group_format, start_date, end_date)
+
+        result = {}
+        for i in range(12):
+            month_date = (today.replace(day=1) - timedelta(days=30 * (11 - i)))
+            accurate_month = (today.month - 11 + i - 1) % 12 + 1
+            accurate_year = today.year + ((today.month - 11 + i - 1) // 12)
+            month_date = datetime(accurate_year, accurate_month, 1)
+            month_key = month_date.strftime('%Y-%m')
+            result[month_key] = raw_data.get(month_key, 0)
+
+        return result
+
+    def get_conversations_by_year(self) -> Dict[str, int]:
+        current_year = datetime.now().year
+        start_year = current_year - 5
+        start_date = datetime(start_year, 1, 1)
+        end_date = datetime.now().replace(hour=23, minute=59, second=59, microsecond=999999)
+
+        db_group_format = {
+            'postgresql': 'YYYY',
+            'mysql': '%Y',
+            'sqlite': '%Y'
+        }.get(self.db.bind.name, '%Y')
+
+        raw_data = self._get_conversation_counts_by_period(db_group_format, start_date, end_date)
+
+        result = {}
+        for year in range(start_year, current_year + 1):
+            year_key = str(year)
+            result[year_key] = raw_data.get(year_key, 0)
+
+        return result
+    
+    def _get_escalation_condition(self):
+        """
+        Mengembalikan kondisi SQLAlchemy untuk mengidentifikasi eskalasi.
+        Berdasarkan kemunculan 'INSERT INTO ai.customer_feedback' di agent_tools_call.
+        """
+        # Perhatikan: func.unnest dan column("tool", type_=Text) adalah PostgreSQL-specific
+        return exists(
+            select(1).select_from(
+                func.unnest(Chat.agent_tools_call).alias("tool")
+            ).where(
+                column("tool", type_=TEXT).ilike('%INSERT INTO ai.customer_feedback%')
+            )
+        )
+
+    def _get_escalation_counts_by_period(self, group_format: str, start_date: datetime, end_date: datetime) -> Dict[str, int]:
+        """
+        Helper private untuk mendapatkan jumlah eskalasi berdasarkan format grup periode.
+        Digunakan oleh metode weekly, monthly, yearly.
+        """
+        try:
+            # Query utama untuk menghitung eskalasi
+            query = self.db.query(
+                func.to_char(Chat.created_at, group_format).label("period"), # to_char untuk PostgreSQL
+                func.count(Chat.id).label("total_escalations")
+            ).filter(
+                Chat.created_at >= start_date,
+                Chat.created_at <= end_date,
+                Chat.agent_tools_call.isnot(None), # Pastikan array tidak null
+                func.cardinality(Chat.agent_tools_call) > 0, # Pastikan array tidak kosong
+                self._get_escalation_condition() # Kondisi eskalasi
+            ).group_by("period").all()
+
+            result_dict = {row.period: row.total_escalations for row in query}
+            return result_dict
+        except SQLAlchemyError as e:
+            logger.error(f"SQLAlchemy Error getting escalation counts by period: {e}", exc_info=True)
+            raise e
+
+    def get_weekly_escalation_count(self) -> Dict[str, int]:
+        final_weekly_stats: Dict[str, int] = {}
+        today = datetime.now()
+
+        # Ambil Senin minggu ini
+        start_of_this_week = today - timedelta(days=today.weekday())
+        start_date_for_query = start_of_this_week - timedelta(weeks=11)
+        end_date_for_query = today.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+        db_group_format = 'IYYY-IW'  # Gunakan ISO week format di PostgreSQL
+
+        raw_data = self._get_escalation_counts_by_period(db_group_format, start_date_for_query, end_date_for_query)
+
+        for i in range(12):
+            target_date = start_date_for_query + timedelta(weeks=i)
+            # Gunakan ISO week juga di Python
+            iso_year, iso_week, _ = target_date.isocalendar()
+            week_key = f"{iso_year}-{iso_week:02d}"
+            final_weekly_stats[week_key] = raw_data.get(week_key, 0)
+
+        sorted_keys = sorted(final_weekly_stats.keys())
+        return {k: final_weekly_stats[k] for k in sorted_keys}
+
+
+    def get_monthly_escalation_count(self) -> Dict[str, int]:
+        final_monthly_stats: Dict[str, int] = {}
+        today = datetime.now()
+
+        # Awal bulan ini
+        start_of_current_month = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        # Ambil awal 12 bulan lalu
+        start_date_for_query = start_of_current_month - relativedelta(months=11)
+        # Akhir bulan ini
+        end_date_for_query = today.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+        db_group_format = 'YYYY-MM'
+        raw_data = self._get_escalation_counts_by_period(db_group_format, start_date_for_query, end_date_for_query)
+        logger.debug(f"Raw escalation data from DB: {raw_data}")
+
+        # Iterasi 12 bulan dari start_date
+        current_month_iter = start_date_for_query.replace(day=1)
+        for _ in range(12):
+            month_key = current_month_iter.strftime('%Y-%m')
+            final_monthly_stats[month_key] = raw_data.get(month_key, 0)
+            current_month_iter += relativedelta(months=1)
+
+        return dict(sorted(final_monthly_stats.items()))
+
+
+    def get_yearly_escalation_count(self) -> Dict[str, int]:
+        final_yearly_stats: Dict[str, int] = {}
+        current_year = datetime.now().year
+
+        start_date_for_query = datetime(current_year - 5, 1, 1)
+        end_date_for_query = datetime.now().replace(hour=23, minute=59, second=59, microsecond=999999)
+
+        db_group_format = 'YYYY'
+
+        raw_data = self._get_escalation_counts_by_period(db_group_format, start_date_for_query, end_date_for_query)
+
+        for year in range(current_year - 5, current_year + 1):
+            year_key = str(year)
+            final_yearly_stats[year_key] = raw_data.get(year_key, 0)
+
+        return final_yearly_stats
+
 
     # Metode untuk mengambil riwayat chat dengan pagination (sudah direfactor sebelumnya)
-    def get_all_chat_history(self, offset: int = 0, limit: int = 100) -> List[Chat]:
+    def get_all_chat_history(self, offset: int, limit: int) -> List[Chat]:
         """
         Mengambil data Chat dengan pagination.
 
@@ -45,9 +244,9 @@ class ChatHistoryService:
             SQLAlchemyError: Jika terjadi kesalahan saat berinteraksi dengan database.
         """
         try:
-            logger.info(f"Fetching all chat history from database with offset={offset}, limit={limit}.")
+            logger.info(f"Fetching all chat history from database with offset={offset}, limit={limit}, ordered by created_at DESC.")
             chat_history = self.db.query(Chat)\
-                .order_by(Chat.created_at)\
+                .order_by(desc(Chat.created_at))\
                 .offset(offset)\
                 .limit(limit)\
                 .all()
@@ -93,7 +292,7 @@ class ChatHistoryService:
             raise e
 
     # --- Metode Baru: Mengambil riwayat chat untuk user spesifik ---
-    def get_user_chat_history_by_user_id(self, user_id: uuid.UUID, offset: int = 0, limit: int = 100) -> List[Chat]:
+    def get_user_chat_history_by_user_id(self, user_id: uuid.UUID, offset: int, limit: int) -> List[Chat]:
         """
         Mengambil riwayat chat untuk user spesifik berdasarkan user_id, dengan pagination.
 
@@ -144,7 +343,7 @@ class ChatHistoryService:
             # Re-raise sebagai SQLAlchemyError atau tangani secara spesifik jika bukan DB error
             raise SQLAlchemyError(f"Unexpected error: {e}")
         
-    def get_user_chat_history_by_room_id(self, room_id: uuid.UUID, offset: int = 0, limit: int = 100) -> List[Chat]:
+    def get_user_chat_history_by_room_id(self, room_id: uuid.UUID, offset: int, limit: int) -> List[Chat]:
         """
         Mengambil riwayat chat untuk user spesifik berdasarkan room_id, dengan pagination.
 
@@ -348,6 +547,105 @@ class ChatHistoryService:
         except SQLAlchemyError as e:
             logger.error(f"SQLAlchemy Error getting monthly average latency in seconds: {e}", exc_info=True)
             raise e
+        
+    def get_monthly_escalation_count(self):
+        """
+        Menghitung total eskalasi bulanan berdasarkan kemunculan 'INSERT INTO ai.customer_feedback'
+        di dalam elemen array 'agent_tools_call' pada tabel 'chats'.
+        Mengembalikan dict: {'YYYY-MM': count}, termasuk bulan di tahun ini yang belum memiliki data.
+        """
+        try:
+            logger.info("Getting monthly escalation count.")
+
+            # Subquery EXISTS dengan unnest + LIKE
+            exists_condition = exists(
+                select(1).select_from(
+                    func.unnest(Chat.agent_tools_call).alias("tool")
+                ).where(
+                    column("tool", type_=Text).ilike('%INSERT INTO ai.customer_feedback%')
+                )
+            )
+
+            # Query utama
+            monthly_escalation_raw = self.db.query(
+                func.to_char(Chat.created_at, 'YYYY-MM').label('month'),
+                func.count(Chat.id).label('count')
+            ).filter(
+                Chat.agent_tools_call.isnot(None),
+                func.cardinality(Chat.agent_tools_call) > 0,
+                exists_condition
+            ).group_by('month').order_by('month').all()
+
+            # Lengkapi bulan di tahun ini hingga bulan saat ini
+            now = datetime.now()
+            current_year = now.year
+            current_month = now.month
+
+            monthly_data = defaultdict(int)
+
+            # Isi default 0 untuk bulan di tahun ini hingga saat ini
+            for i in range(1, current_month + 1):
+                month_str = f"{current_year}-{i:02d}"
+                monthly_data[month_str] = 0
+
+            # Tambahkan data dari hasil query
+            for month_db, count_db in monthly_escalation_raw:
+                monthly_data[month_db] = count_db
+
+            # Urutkan hasil akhir
+            sorted_result = dict(sorted(monthly_data.items()))
+
+            logger.info(f"Monthly escalation count: {sorted_result}")
+            return sorted_result
+
+        except SQLAlchemyError as e:
+            logger.error(f"SQLAlchemy Error getting monthly escalation count: {e}", exc_info=True)
+            raise
+        except Exception as e:
+            logger.error(f"An unexpected error occurred: {e}", exc_info=True)
+            raise
+        
+    def get_monthly_tokens_used(self) -> Dict[str, float]:
+        """
+        Menghitung total jumlah token yang digunakan setiap bulan selama tahun berjalan.
+        Menjumlahkan kolom 'agent_total_tokens' dari tabel Chat, dikelompokkan berdasarkan bulan.
+        """
+        try:
+            logger.info("Calculating monthly tokens used for the current year.")
+            current_year = datetime.now().year
+
+            # Gunakan alias agar to_char tidak dihitung dua kali
+            month_expr = func.to_char(Chat.created_at, 'YYYY-MM')
+
+            monthly_tokens = self.db.query(
+                month_expr.label('month'),
+                func.sum(Chat.agent_total_tokens).label('total_tokens')
+            ).filter(
+                extract('year', Chat.created_at) == current_year
+            ).group_by(
+                month_expr
+            ).order_by(
+                month_expr
+            ).all()
+
+            # Inisialisasi semua bulan tahun ini hingga bulan saat ini dengan 0
+            monthly_data = defaultdict(float)
+            for month_num in range(1, datetime.now().month + 1):
+                month_str = f"{current_year}-{month_num:02d}"
+                monthly_data[month_str] = 0.0
+
+            # Isi data dari hasil query
+            for month_year_str, total_tokens in monthly_tokens:
+                monthly_data[month_year_str] = total_tokens if total_tokens is not None else 0.0
+
+            sorted_monthly_data = dict(sorted(monthly_data.items()))
+            logger.info(f"Monthly tokens used data: {sorted_monthly_data}")
+            return sorted_monthly_data
+
+        except SQLAlchemyError as e:
+            logger.error(f"SQLAlchemy Error calculating monthly tokens used: {e}", exc_info=True)
+            raise
+
 
 
 # Dependency function untuk menyediakan instance ChatHistoryService

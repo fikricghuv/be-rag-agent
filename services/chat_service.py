@@ -15,6 +15,9 @@ from datetime import timedelta
 from sqlalchemy.future import select
 from sqlalchemy import update, insert, delete
 import sqlalchemy
+from openai import OpenAI
+
+client = OpenAI()
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -24,6 +27,34 @@ class ChatService:
         self.db: AsyncSession = db
         self.active_websockets = active_websockets
         self.admin_room_associations = admin_room_associations
+        
+    def classify_zero_shot(self, response_text: str) -> str:
+        prompt = f"""
+        Kategorikan pesan ini ke salah satu kategori berikut:
+        - Sapa
+        - Informasi Umum
+        - Produk Asuransi Oto
+        - Produk Asuransi Asri
+        - Produk Asuransi Sepeda
+        - Produk Asuransi Apartemen
+        - Produk Asuransi Ruko
+        - Produk Asuransi Diri
+        - Claim
+        - Payment
+        - Policy
+        - Complaint
+        - Others
+
+        Pesan: "{response_text}"
+
+        Jawab hanya dengan 1 nama kategorinya saja. Pilih yang paling sesuai dengan konteks pesan di atas.
+        """
+        completion = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return completion.choices[0].message.content.strip().lower()
+
 
     async def get_active_websocket(self, user_id: uuid.UUID) -> Optional[WebSocket]:
         logger.debug(f"🔍 Mencari websocket aktif untuk user_id: {user_id}")
@@ -221,9 +252,6 @@ class ChatService:
                      "sender_id": str(chat.sender_id),
                      "message": chat.message,
                      "timestamp": chat.timestamp.isoformat() if chat.timestamp else None,
-                     # Note: Anda mungkin ingin menambahkan 'role' pengirim di sini.
-                     # Ini bisa dilakukan dengan join ke tabel Member atau menyimpan role di tabel Chat.
-                     # Untuk saat ini, hanya ID pengirim dan pesan.
                  })
              logger.debug(f"Fetched {len(history_list)} chat history items for room {room_id}.")
              return history_list
@@ -304,6 +332,7 @@ class ChatService:
 
             # Panggil agent (asumsi agent.run sync)
             agent = call_customer_service_agent(str(chatbot_id), str(user_id), str(user_id))
+            # agent_response = agent.run(message)
             agent_response = agent.run(message)
 
             input_token = getattr(getattr(agent_response.messages[-1], 'metrics', None), 'input_tokens', None)
@@ -311,17 +340,21 @@ class ChatService:
             total_token = getattr(getattr(agent_response.messages[-1], 'metrics', None), 'total_tokens', None)
             tools_call = getattr(agent_response, 'formatted_tool_calls', None)
             content = getattr(agent_response, 'content', None)
-
+            print(f"Agent response content: {content}")
+            if not content:
+                category = ""
+            else:
+                category = self.classify_zero_shot(content)
 
             latency_seconds = time.time() - start_time
             latency=timedelta(seconds=latency_seconds)
 
-            # Simpan pesan chatbot (jawaban)
+            
             saved_response_message = await self.save_chat_history(
                 room_conversation_id=room_id,
-                sender_id=chatbot_id, # Simpan ID Chatbot (UUID)
+                sender_id=chatbot_id,
                 message=content,
-                agent_response_category="",
+                agent_response_category=category,
                 agent_response_latency=latency,
                 agent_total_tokens=total_token,
                 agent_input_tokens=input_token,
@@ -410,20 +443,8 @@ class ChatService:
 
 
     async def handle_admin_message(self, websocket: WebSocket, data: dict, sender_id: uuid.UUID, room_id: uuid.UUID):
-        # Handler ini untuk pesan chat *biasa* dari admin ke user di room spesifik.
-        # Status agent_active diubah oleh pesan type "admin_take_over", bukan di sini.
-        # target_user_id_str = data.get("target_user_id")
+        
         admin_message = data.get("message")
-
-        # if not target_user_id_str or not admin_message:
-        #     await websocket.send_json({"success": False, "error": "Target user ID dan pesan diperlukan"})
-        #     return
-
-        # try:
-        #     target_user_id = uuid.UUID(target_user_id_str)
-        # except ValueError:
-        #     await websocket.send_json({"success": False, "error": "Format target user ID tidak valid"})
-        #     return
 
         try:
             # Periksa apakah target user adalah anggota room yang online
