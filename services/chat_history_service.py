@@ -9,9 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError # Import SQLAlchemyError
 from fastapi import Depends # Diperlukan untuk Depends di dependency function
 from typing import List, Dict, Any
 from collections import defaultdict
-# Asumsi model Chat, RoomConversation, Member diimpor dari database.models
 from database.models import Chat, RoomConversation, Member
-# Asumsi config_db diimpor dari core.config_db
 from core.config_db import config_db
 from sqlalchemy import TEXT, Text
 from dateutil.relativedelta import relativedelta
@@ -33,52 +31,6 @@ class ChatHistoryService:
             db: SQLAlchemy Session object.
         """
         self.db = db
-    
-    # def _get_conversation_counts_by_period(self, group_format: str, start_date: datetime, end_date: datetime) -> Dict[str, int]:
-    #     try:
-    #         if self.db.bind.name == 'postgresql':
-    #             period_expr = func.to_char(Chat.created_at, group_format)
-    #         elif self.db.bind.name == 'mysql':
-    #             period_expr = func.date_format(Chat.created_at, group_format)
-    #         else:  # SQLite
-    #             period_expr = func.strftime(group_format, Chat.created_at)
-    #
-    #         query = self.db.query(
-    #             period_expr.label("period"),
-    #             func.count(distinct(Chat.id)).label("total_conversations")
-    #         ).filter(
-    #             Chat.created_at >= start_date,
-    #             Chat.created_at <= end_date
-    #         ).group_by("period").all()
-    #
-    #         return {row.period: row.total_conversations for row in query}
-    #     except SQLAlchemyError as e:
-    #         logger.error(f"SQLAlchemy Error getting conversation counts by period: {e}", exc_info=True)
-    #         raise e
-    #
-    # def get_conversations_by_week(self) -> Dict[str, int]:
-    #     today = datetime.now()
-    #     start_of_current_week = today - timedelta(days=today.weekday())
-    #     start_date = start_of_current_week - timedelta(weeks=11)
-    #     end_date = today.replace(hour=23, minute=59, second=59, microsecond=999999)
-    #
-    #     db_group_format = {
-    #         'postgresql': 'IYYY-IW',
-    #         'mysql': '%X-%v',     # ISO year-week
-    #         'sqlite': '%Y-%W'
-    #     }.get(self.db.bind.name, '%Y-%W')
-    #
-    #     py_group_format = '%G-%V' if self.db.bind.name == 'postgresql' else '%Y-%W'
-    #
-    #     raw_data = self._get_conversation_counts_by_period(db_group_format, start_date, end_date)
-    #
-    #     result = {}
-    #     for i in range(12):
-    #         week_date = start_date + timedelta(weeks=i)
-    #         week_key = week_date.strftime(py_group_format)
-    #         result[week_key] = raw_data.get(week_key, 0)
-    #
-    #     return result
 
     def _get_conversation_counts_by_period(self, group_format: str, start_date: datetime, end_date: datetime) -> Dict[
         str, int]:
@@ -212,58 +164,6 @@ class ChatHistoryService:
                 column("tool", type_=TEXT).ilike('%INSERT INTO ai.customer_feedback%')
             )
         )
-
-    # def _get_escalation_counts_by_period(self, group_format: str, start_date: datetime, end_date: datetime) -> Dict[str, int]:
-    #     """
-    #     Helper private untuk mendapatkan jumlah eskalasi berdasarkan format grup periode.
-    #     Digunakan oleh metode weekly, monthly, yearly.
-    #     """
-    #     try:
-    #         if self.db.bind.name == 'postgresql':
-    #             period_expr = func.to_char(Chat.created_at, group_format)
-    #         elif self.db.bind.name == 'mysql':
-    #             period_expr = func.date_format(Chat.created_at, group_format)
-    #         else:  # SQLite
-    #             period_expr = func.strftime(group_format, Chat.created_at)
-    #
-    #         # Query utama untuk menghitung eskalasi
-    #         query = self.db.query(
-    #             period_expr.label("period"),
-    #             func.count(distinct(Chat.id)).label("total_escalations")
-    #         ).filter(
-    #             Chat.created_at >= start_date,
-    #             Chat.created_at <= end_date,
-    #             self._get_escalation_condition() # Kondisi eskalasi
-    #         ).group_by("period").all()
-    #
-    #         result_dict = {row.period: row.total_escalations for row in query}
-    #         return result_dict
-    #     except SQLAlchemyError as e:
-    #         logger.error(f"SQLAlchemy Error getting escalation counts by period: {e}", exc_info=True)
-    #         raise e
-    #
-    # def get_weekly_escalation_count(self) -> Dict[str, int]:
-    #     final_weekly_stats: Dict[str, int] = {}
-    #     today = datetime.now()
-    #
-    #     # Ambil Senin minggu ini
-    #     start_of_this_week = today - timedelta(days=today.weekday())
-    #     start_date_for_query = start_of_this_week - timedelta(weeks=11)
-    #     end_date_for_query = today.replace(hour=23, minute=59, second=59, microsecond=999999)
-    #
-    #     db_group_format = 'IYYY-IW'  # Gunakan ISO week format di PostgreSQL
-    #
-    #     raw_data = self._get_escalation_counts_by_period(db_group_format, start_date_for_query, end_date_for_query)
-    #
-    #     for i in range(12):
-    #         target_date = start_date_for_query + timedelta(weeks=i)
-    #         # Gunakan ISO week juga di Python
-    #         iso_year, iso_week, _ = target_date.isocalendar()
-    #         week_key = f"{iso_year}-{iso_week:02d}"
-    #         final_weekly_stats[week_key] = raw_data.get(week_key, 0)
-    #
-    #     sorted_keys = sorted(final_weekly_stats.keys())
-    #     return {k: final_weekly_stats[k] for k in sorted_keys}
 
     def _get_escalation_counts_by_period(self, group_format: str, start_date: datetime, end_date: datetime) -> Dict[
         str, int]:
@@ -471,11 +371,6 @@ class ChatHistoryService:
         try:
             logger.info(f"Fetching chat history for room {user_id} with offset={offset}, limit={limit}.")
 
-            # Query untuk mengambil chat history berdasarkan sender_id (atau kolom yang relevan)
-            # Asumsi Chat.sender_id adalah kolom yang menyimpan user_id yang mengirim pesan
-            # Jika user_id di RoomConversation atau Member yang relevan, join tabel tersebut.
-            # Contoh query berdasarkan sender_id di tabel Chat:
-            # 1. Ambil semua room_conversation_id dari chat yang dikirim oleh user_id
             subquery = (
                 self.db.query(Chat.room_conversation_id)
                 .filter(Chat.sender_id == user_id)

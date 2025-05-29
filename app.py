@@ -14,6 +14,8 @@ from api.endpoints.prompt_endpoint import router as prompt_endpoint
 from api.endpoints.room_endpoint import router as room_endpoint
 from api.websocket.chat_ws import router as chat_ws
 
+from fastapi.staticfiles import StaticFiles 
+
 # Inisialisasi aplikasi dan limiter
 app = FastAPI()
 limiter = Limiter(key_func=get_remote_address)
@@ -85,6 +87,8 @@ app.include_router(prompt_endpoint)
 
 #Daftar route websocket
 app.include_router(chat_ws)
+
+app.mount("/static", StaticFiles(directory="/Users/cghuv/Documents/Project/AGENT-PROD/app/resources/uploaded_files"), name="static_files")
 
 
 # Rate limit untuk root endpoint

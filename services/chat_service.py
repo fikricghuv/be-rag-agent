@@ -16,6 +16,11 @@ from sqlalchemy.future import select
 from sqlalchemy import update, insert, delete
 import sqlalchemy
 from openai import OpenAI
+from datetime import datetime
+from pathlib import Path
+from agno.media import File
+import base64
+import os
 
 client = OpenAI()
 
@@ -264,7 +269,48 @@ class ChatService:
     # --- Modifikasi handle_user_message untuk Mengecek Status Agen ---
 
     async def handle_user_message(self, websocket: WebSocket, data: dict, user_id: uuid.UUID, room_id: uuid.UUID, start_time: float):
+        type_data = data.get("type")
+        print(f"Handling user message of type: {type_data}")
+        file_loc = []
+        
+        if type_data != "message":
+            file_name = data.get("file_name")
+            file_type = data.get("file_type")
+            file_size = data.get("file_size")
+            file_data_base64 = data.get("file_data")
+
+            print(f"Pesan file dari user {user_id} di room {room_id}: {file_name} ({file_type}, {file_size} bytes)")
+
+            if not all([file_name, file_type, file_data_base64]):
+                await websocket.send_json({"success": False, "error": "Data file tidak lengkap"})
+                return
+
+            # 1. Dekode Base64 ke biner
+            file_bytes = base64.b64decode(file_data_base64)
+
+            # 2. Tentukan path penyimpanan
+            # Pastikan direktori ini ada atau buat jika belum ada
+            upload_dir = "./resources/uploaded_files"
+            os.makedirs(upload_dir, exist_ok=True)
+
+            # Buat nama file unik untuk menghindari tabrakan
+            unique_filename = f"{uuid.uuid4()}_{file_name}"
+            file_path = os.path.join(upload_dir, unique_filename)
+            valid_file_path = file_path + ".pdf"
+            # 3. Simpan file ke disk
+            with open(file_path, "wb") as f:
+                f.write(file_bytes)
+            
+            file_url = f"http://localhost:8001/static/{unique_filename}" 
+
+            logger.info(f"File '{file_name}' saved to {file_path} with URL {file_url}")
+            
+            file_loc = [File(filepath=valid_file_path)]
+            
+            return file_loc
+        
         message = data.get("message")
+        
         print(f"Pesan dari user {user_id} di room {room_id}: {message}")
 
         if not message or message == None:
@@ -330,17 +376,21 @@ class ChatService:
                  )
                  return # Keluar jika tidak ada chatbot untuk memproses
 
+            # pdf_path = "/Users/cghuv/Documents/Project/AGENT-PROD/app/resources/uploaded_files/document_product_asrisyariah.pdf"
+            
             # Panggil agent (asumsi agent.run sync)
             agent = call_customer_service_agent(str(chatbot_id), str(user_id), str(user_id))
             # agent_response = agent.run(message)
-            agent_response = agent.run(message)
-
+            print(f"file_loc", file_loc)
+            agent_response = agent.run(message, files=file_loc)
+            
             input_token = getattr(getattr(agent_response.messages[-1], 'metrics', None), 'input_tokens', None)
             output_token = getattr(getattr(agent_response.messages[-1], 'metrics', None), 'output_tokens', None)
             total_token = getattr(getattr(agent_response.messages[-1], 'metrics', None), 'total_tokens', None)
             tools_call = getattr(agent_response, 'formatted_tool_calls', None)
             content = getattr(agent_response, 'content', None)
             print(f"Agent response content: {content}")
+            
             if not content:
                 category = ""
             else:
@@ -364,10 +414,7 @@ class ChatService:
                 role="chatbot" 
             )
             logger.info("Chatbot response saved.")
-
-            # Kirim response chatbot ke user
-            # await websocket.send_json({"success": True, "data": saved_response_message, "from": "chatbot", "room_id": str(room_id)})
-            # Di dalam handle_user_message, setelah saved_response_message
+            
             await websocket.send_json({"success": True, "data": saved_response_message, "from": "chatbot", "room_id": str(room_id)})
             # Kirim pesan user dan chatbot ke admin yang sedang melihat room ini
             await self._send_message_to_associated_admins(
@@ -378,6 +425,15 @@ class ChatService:
                  room_id,
                  {"sender_id": str(chatbot_id), "message": content, "role": "chatbot", "room_id": str(room_id)}
             )
+            
+            #update room_conversation updated_at
+            updated_at_room = (
+                update(RoomConversation)
+                .where(RoomConversation.id == room_id)
+                .values(updated_at=datetime.utcnow())  # update eksplisit
+            )
+            await self.db.execute(updated_at_room)
+            await self.db.commit()
 
 
             # Broadcast notifikasi umum ke SEMUA admin online (jika masih perlu dan berbeda dari stream)
@@ -505,6 +561,175 @@ class ChatService:
         except Exception as e:
             logger.error(f"Error in handle_admin_message for room {room_id}: {e}", exc_info=True)
             await websocket.send_json({"success": False, "error": f"Terjadi kesalahan: {e}"})
+            
+    async def handle_user_file(self, websocket: WebSocket, data: dict, user_id: uuid.UUID, room_id: uuid.UUID, start_time: float):
+        
+        file_loc = []
+        
+        file_name = data.get("file_name")
+        file_type = data.get("file_type")
+        file_size = data.get("file_size")
+        file_data_base64 = data.get("file_data")
+
+        print(f"Pesan file dari user {user_id} di room {room_id}: {file_name} ({file_type}, {file_size} bytes)")
+
+        if not all([file_name, file_type, file_data_base64]):
+            await websocket.send_json({"success": False, "error": "Data file tidak lengkap"})
+            return
+
+        # 1. Dekode Base64 ke biner
+        file_bytes = base64.b64decode(file_data_base64)
+
+        # 2. Tentukan path penyimpanan
+        # Pastikan direktori ini ada atau buat jika belum ada
+        upload_dir = "./resources/uploaded_files"
+        os.makedirs(upload_dir, exist_ok=True)
+
+        # Buat nama file unik untuk menghindari tabrakan
+        unique_filename = f"{uuid.uuid4()}_{file_name}"
+        file_path = os.path.join(upload_dir, unique_filename)
+        valid_file_path = file_path
+        # 3. Simpan file ke disk
+        with open(file_path, "wb") as f:
+            f.write(file_bytes)
+        
+        file_url = f"http://localhost:8001/static/{unique_filename}" 
+
+        logger.info(f"File '{file_name}' saved to {file_path} with URL {file_url}")
+        
+        file_loc = [File(filepath=valid_file_path)]
+
+        try:
+            # --- Cek Status Agen di Room ---
+            room_result = await self.db.execute(
+                select(RoomConversation.agent_active)
+                .where(RoomConversation.id == room_id)
+                .limit(1)
+            )
+            is_agent_active = room_result.scalar_one_or_none()
+
+            # Simpan pesan user ke history (ini selalu dilakukan)
+            await self.save_chat_history(
+                 room_conversation_id=room_id,
+                 sender_id=user_id,
+                 message="file",
+                 agent_response_category=None,
+                 agent_response_latency=None,
+                 agent_total_tokens=None,
+                 agent_input_tokens=None,
+                 agent_output_tokens=None,
+                 agent_other_metrics=None,
+                 agent_tools_call=None,
+                 role="user" 
+            )
+            logger.info("User message saved.")
+            # Kirim pesan user kembali ke user itu sendiri untuk konfirmasi UI
+            # await websocket.send_json({"success": True, "data": question, "from": "user", "room_id": str(room_id)})
+
+
+            if is_agent_active is False:
+                # Agen tidak aktif, kirim notifikasi ke admin yang melihat room dan keluar
+                logger.info(f"Agent is inactive for room {room_id}. Skipping agent call for user {user_id}.")
+                # Opsional: Kirim pesan otomatis ke user "Admin sedang membantu Anda"
+                # await websocket.send_json({"type": "info", "room_id": str(room_id), "message": "Seorang admin sedang membantu Anda."})
+
+                # Kirim pesan user ke admin yang sedang melihat room ini
+                await self._send_message_to_associated_admins(
+                     room_id,
+                     {"sender_id": str(user_id), "message": "file", "role": "user", "room_id": str(room_id)}
+                )
+                return # Penting: Keluar dari metode, jangan panggil agen
+
+            # --- Jika Agen Aktif, Lanjutkan Proses Pemanggilan Agen ---
+            logger.info(f"Agent is active for room {room_id}. Calling agent for user {user_id}'s message.")
+            # Cari ID chatbot untuk room ini dari DB
+            chatbot_result = await self.db.execute(
+                 select(Member.user_id).where(Member.room_conversation_id == room_id, Member.role == "chatbot")
+            )
+            chatbot_id = chatbot_result.scalar_one_or_none()
+
+            if not chatbot_id:
+                 logger.error(f"Chatbot member not found for room {room_id}")
+                 await websocket.send_json({"success": False, "error": "Chatbot tidak ditemukan di room ini."})
+                 # Tetap kirim pesan user ke admin meskipun chatbot tidak ada? Tergantung kebutuhan.
+                 await self._send_message_to_associated_admins(
+                      room_id,
+                      {"sender_id": str(user_id), "message": "file", "role": "user", "room_id": str(room_id)}
+                 )
+                 return # Keluar jika tidak ada chatbot untuk memproses
+
+            # pdf_path = "/Users/cghuv/Documents/Project/AGENT-PROD/app/resources/uploaded_files/document_product_asrisyariah.pdf"
+            
+            # Panggil agent (asumsi agent.run sync)
+            agent = call_customer_service_agent(str(chatbot_id), str(user_id), str(user_id))
+            # agent_response = agent.run(message)
+            print(f"file_loc", file_loc)
+            agent_response = agent.run("Berikan kesimpulan dari document ini.", files=file_loc)
+            
+            input_token = getattr(getattr(agent_response.messages[-1], 'metrics', None), 'input_tokens', None)
+            output_token = getattr(getattr(agent_response.messages[-1], 'metrics', None), 'output_tokens', None)
+            total_token = getattr(getattr(agent_response.messages[-1], 'metrics', None), 'total_tokens', None)
+            tools_call = getattr(agent_response, 'formatted_tool_calls', None)
+            content = getattr(agent_response, 'content', None)
+            print(f"Agent response content: {content}")
+            
+            if not content:
+                category = ""
+            else:
+                category = self.classify_zero_shot(content)
+
+            latency_seconds = time.time() - start_time
+            latency=timedelta(seconds=latency_seconds)
+
+            
+            saved_response_message = await self.save_chat_history(
+                room_conversation_id=room_id,
+                sender_id=chatbot_id,
+                message=content,
+                agent_response_category=category,
+                agent_response_latency=latency,
+                agent_total_tokens=total_token,
+                agent_input_tokens=input_token,
+                agent_output_tokens=output_token,
+                agent_other_metrics=None,
+                agent_tools_call=tools_call,
+                role="chatbot" 
+            )
+            logger.info("Chatbot response saved.")
+            
+            await websocket.send_json({"success": True, "data": saved_response_message, "from": "chatbot", "room_id": str(room_id)})
+            # Kirim pesan user dan chatbot ke admin yang sedang melihat room ini
+            await self._send_message_to_associated_admins(
+                 room_id,
+                 {"sender_id": str(user_id), "message": "file", "role": "user", "room_id": str(room_id)}
+            )
+            await self._send_message_to_associated_admins(
+                 room_id,
+                 {"sender_id": str(chatbot_id), "message": content, "role": "chatbot", "room_id": str(room_id)}
+            )
+            
+            #update room_conversation updated_at
+            updated_at_room = (
+                update(RoomConversation)
+                .where(RoomConversation.id == room_id)
+                .values(updated_at=datetime.utcnow())  # update eksplisit
+            )
+            await self.db.execute(updated_at_room)
+            await self.db.commit()
+
+
+            # Broadcast notifikasi umum ke SEMUA admin online (jika masih perlu dan berbeda dari stream)
+            # await self._notify_all_online_admins_of_new_message(room_id, user_id, question, content)
+
+
+        except Exception as e:
+            logger.exception(f"Error handling user message (agent active path) for user {user_id} in room {room_id}:")
+            # Di sini juga penting untuk mengirim pesan user ke admin jika terjadi error agent
+            # await self._send_message_to_associated_admins(
+            #      room_id,
+            #      {"sender_id": str(user_id), "message": question, "role": "user", "room_id": str(room_id)}
+            # )
+            await websocket.send_json({"success": False, "error": f"Terjadi kesalahan saat memproses pesan: {e}"})
 
     # ... (handle_disconnect tetap sama) ...
     async def handle_disconnect(self, user_id: uuid.UUID, role: str, room_id: Optional[uuid.UUID]):

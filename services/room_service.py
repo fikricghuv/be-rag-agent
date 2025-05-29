@@ -6,7 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError # Import SQLAlchemyError for specific
 from fastapi import Depends # Import Depends for dependency function
 from typing import List, Dict, Any # Diperlukan untuk type hinting
 # Asumsi model RoomConversation diimpor dari database.models
-from database.models import RoomConversation
+from database.models import RoomConversation, Chat
 # Asumsi config_db diimpor dari core.config_db
 from core.config_db import config_db
 
@@ -76,10 +76,11 @@ class RoomService:
             # Menggunakan self.db, memfilter berdasarkan status='active', dan menerapkan pagination
             active_rooms = self.db.query(RoomConversation)\
                 .filter(RoomConversation.status == 'open')\
-                .order_by(RoomConversation.created_at.desc())\
+                .order_by(RoomConversation.updated_at.asc())\
                 .offset(offset)\
                 .limit(limit)\
                 .all()
+            
             logger.info(f"Successfully fetched {len(active_rooms)} active room entries.")
             return active_rooms
         except SQLAlchemyError as e:

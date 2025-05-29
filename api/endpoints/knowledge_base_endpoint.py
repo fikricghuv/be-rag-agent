@@ -1,16 +1,11 @@
 # app/api/endpoints/knowledge_base_routes.py
 import logging # Import logging
-from fastapi import APIRouter, Depends, HTTPException, status # Import status
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError # Import SQLAlchemyError
-# Mengimpor dependency service dan API Key
+from fastapi import APIRouter, Depends, HTTPException, status 
 from services.knowledge_base_service import KnowledgeBaseService, get_knowledge_base_service # Menggunakan service class dan dependency
-from services.verify_api_key_header import api_key_auth # Asumsi dependency api_key_header diimpor dari services.verify_api_key_header
-# Mengimpor Pydantic model konfigurasi
+from services.verify_api_key_header import api_key_auth 
 from schemas.knowledge_base_config_schema import KnowledgeBaseConfig
-from typing import Dict, Any # Diperlukan untuk respons update
 
-# Konfigurasi logging dasar (sesuaikan dengan setup logging aplikasi Anda)
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 

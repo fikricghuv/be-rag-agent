@@ -97,7 +97,6 @@ async def chat_ws(
             if message_type == "message":
                 # Handler pesan chat biasa dari user, admin, atau chatbot
                 if role == "user":
-                     print("/nmasuk useeerrrrr")
                      # Room ID untuk user sudah diketahui dari koneksi awal
                      if room_uuid:
                          await chat_service.handle_user_message(websocket, data, user_uuid, room_uuid, start_time)
@@ -125,7 +124,16 @@ async def chat_ws(
                      else:
                           print(f"⚠️ Chatbot {user_uuid} mengirim pesan tanpa room_id terasosiasi.")
                           await websocket.send_json({"success": False, "error": "Chatbot tidak terasosiasi dengan room chat."})
-
+                          
+            elif message_type == "file":
+                 if role == "user":
+                     # Room ID untuk user sudah diketahui dari koneksi awal
+                     if room_uuid:
+                         await chat_service.handle_user_file(websocket, data, user_uuid, room_uuid, start_time)
+                     else:
+                         print(f"⚠️ User {user_uuid} mengirim pesan tanpa room_id terasosiasi.")
+                         await websocket.send_json({"success": False, "error": "Anda tidak terasosiasi dengan room chat."})
+                 
             # --- Tipe Pesan Khusus Admin ---
             elif role == "admin" and message_type == "admin_join_room":
                  target_room_id_str = data.get("room_id")
