@@ -1,31 +1,32 @@
 from fastapi import HTTPException, Request
 import jwt
 from core.settings import SECRET_KEY, ALGORITHM
+import logging
 
-# Middleware untuk memverifikasi JWT
+logger = logging.getLogger(__name__)
+
 def verify_token(request: Request):
     token = request.headers.get("Authorization")
-    # print("get token: " + token)
+    
     if not token:
         raise HTTPException(status_code=401, detail="Token missing.")
-    
-    # Pastikan token memiliki format "Bearer <token>"
+
     if not token.startswith("Bearer "):
-        print("Invalid token format.")
+        logger.warning("Invalid token format.")
         raise HTTPException(status_code=401, detail="Invalid token format.")
     
     try:
-        token = token.split("Bearer ")[1]  # Ambil bagian token saja
-        print("get clear token: " + token)
+        token = token.split("Bearer ")[1] 
+        
         decoded_token = jwt.decode(
             token,
-            SECRET_KEY,  # Pastikan SECRET_KEY cocok
-            algorithms=[ALGORITHM],  # Pastikan algoritma cocok
+            SECRET_KEY, 
+            algorithms=[ALGORITHM], 
         )
         return decoded_token
     except jwt.ExpiredSignatureError:
-        print("Token expired.")
+        logger.error("Token expired.")
         raise HTTPException(status_code=401, detail="Token expired.")
     except jwt.InvalidTokenError as e:
-        print("invalid token: " + str(e))
+        logger.error("invalid token: " + str(e))
         raise HTTPException(status_code=401, detail="Invalid token: " + str(e))

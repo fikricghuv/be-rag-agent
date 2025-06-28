@@ -2,13 +2,11 @@
 import logging # Import logging
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func 
-from sqlalchemy.exc import SQLAlchemyError # Import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError
 from typing import List
-# Asumsi model CustomerFeedback diimpor dari database.models.customer_feedback_model
 from database.models.customer_feedback_model import CustomerFeedback
 from fastapi import Depends
 
-# Konfigurasi logging dasar (sesuaikan dengan setup logging aplikasi Anda)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -25,7 +23,6 @@ class CustomerFeedbackService:
         """
         self.db = db
 
-    # Mengubah menjadi instance method dan menambahkan parameter pagination
     def fetch_all_feedbacks(self, offset: int, limit: int) -> List[CustomerFeedback]:
         """
         Mengambil data feedback dari database dengan pagination.
@@ -41,17 +38,17 @@ class CustomerFeedbackService:
         """
         try:
             logger.info(f"Fetching customer feedbacks with offset={offset}, limit={limit}.")
-            # Menggunakan self.db dan menerapkan pagination
             feedbacks = self.db.query(CustomerFeedback)\
                 .offset(offset)\
                 .limit(limit)\
-                .all() # Menggunakan .all() setelah limit/offset
+                .all() 
+            
             logger.info(f"Successfully fetched {len(feedbacks)} feedback entries.")
             return feedbacks
         except SQLAlchemyError as e:
-            # Log error detail di sini, tapi biarkan exception propagate
+            
             logger.error(f"SQLAlchemy Error fetching customer feedbacks: {e}", exc_info=True)
-            raise e # Re-raise SQLAlchemyError
+            raise e 
 
     def count_total_feedbacks(self) -> int:
         """
@@ -64,16 +61,17 @@ class CustomerFeedbackService:
         """
         try:
             logger.info("Counting total customer feedbacks.")
-            # Menggunakan func.count() untuk menghitung total baris
+            
             total_count = self.db.query(func.count(CustomerFeedback.id)).scalar()
             logger.info(f"Total customer feedbacks found: {total_count}.")
+            
             return total_count
+        
         except SQLAlchemyError as e:
             logger.error(f"SQLAlchemy Error counting total customer feedbacks: {e}", exc_info=True)
             raise e
 
-# Dependency function untuk menyediakan instance CustomerFeedbackService
-from core.config_db import config_db # Pastikan ini diimpor dengan benar
+from core.config_db import config_db 
 
 def get_customer_feedback_service(db: Session = Depends(config_db)):
     """

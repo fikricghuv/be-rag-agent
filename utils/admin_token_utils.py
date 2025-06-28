@@ -6,21 +6,21 @@ from core.settings import SECRET_KEY_ADMIN, SECRET_KEY_REFRESH_ADMIN, ALGORITHM
 # Simpan sementara refresh tokens
 refresh_tokens = {}
 
-def create_access_token(admin_id: str, role: str = "admin", expires_delta: timedelta = timedelta(minutes=15)) -> str:
-    to_encode = {
-        "sub": admin_id,
-        "role": role,
-        "exp": datetime.utcnow() + expires_delta
-    }
-    return jwt.encode(to_encode, SECRET_KEY_ADMIN, algorithm=ALGORITHM)
+def _create_token(data: dict, secret_key: str, expires_delta: timedelta) -> str:
+    to_encode = data.copy()
+    to_encode["exp"] = datetime.utcnow() + expires_delta
+    return jwt.encode(to_encode, secret_key, algorithm=ALGORITHM)
 
-def create_refresh_token(admin_id: str, expires_delta: timedelta = timedelta(days=7)) -> str:
-    to_encode = {
-        "sub": admin_id,
-        "type": "refresh",
-        "exp": datetime.utcnow() + expires_delta
-    }
-    return jwt.encode(to_encode, SECRET_KEY_REFRESH_ADMIN, algorithm=ALGORITHM)
+def create_access_token(admin_id: str, role: str = "admin", expires_delta: timedelta = timedelta(minutes=15)):
+    return _create_token({
+        "sub": admin_id, 
+        "role": role
+        }, SECRET_KEY_ADMIN, expires_delta)
+
+def create_refresh_token(admin_id: str, expires_delta: timedelta = timedelta(days=7)):
+    return _create_token({
+        "sub": admin_id, 
+        "type": "refresh"}, SECRET_KEY_REFRESH_ADMIN, expires_delta)
 
 def decode_refresh_token(token: str) -> str:
     try:

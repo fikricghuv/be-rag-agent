@@ -1,15 +1,15 @@
-from sqlalchemy import Column, DateTime, String, Integer, Enum, UUID
+from sqlalchemy import Column, DateTime, String, Enum, UUID
 from sqlalchemy.orm import declarative_base
 from datetime import datetime
 import enum
 
 Base = declarative_base()
 
-# Definisi Enum untuk Role
-class UserRole(enum.Enum):
+class UserRole(str, enum.Enum):
     user = "user"
-    admin = "admin"
     chatbot = "chatbot"
+    admin = "admin"
+
 
 # Model Chat History
 class UserIds(Base):

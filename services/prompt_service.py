@@ -48,6 +48,25 @@ class PromptService:
             # Log error detail di sini, tapi biarkan exception propagate
             logger.error(f"SQLAlchemy Error fetching all prompts: {e}", exc_info=True)
             raise e # Re-raise SQLAlchemyError
+        
+    def fetch_customer_service_prompt(self) -> List[Prompt]:
+        """
+        Mengambil prompt dengan name='Customer Service Agent' dari database.
+
+        Returns:
+            List of Prompt objects yang memiliki name 'Customer Service Agent'.
+        Raises:
+            SQLAlchemyError: Jika terjadi kesalahan saat berinteraksi dengan database.
+        """
+        try:
+            logger.info("Fetching 'Customer Service Agent' prompt from database.")
+            prompts = self.db.query(Prompt).filter(Prompt.name == "Customer Service Agent").all()
+            logger.info(f"Successfully fetched {len(prompts)} prompts with name 'Customer Service Agent'.")
+            return prompts
+        except SQLAlchemyError as e:
+            logger.error(f"SQLAlchemy Error fetching 'Customer Service Agent' prompt: {e}", exc_info=True)
+            raise e
+
 
 
     def update_prompt(self, name: str, prompt_update: PromptUpdate) -> Prompt:

@@ -16,19 +16,13 @@ from api.websocket.chat_ws import router as chat_ws
 
 from fastapi.staticfiles import StaticFiles 
 
-# Inisialisasi aplikasi dan limiter
 app = FastAPI()
 limiter = Limiter(key_func=get_remote_address)
 
-# Inisialisasi state untuk menyimpan websockets aktif
-# Dict[UUID, WebSocket] -> user_id (UUID) -> websocket object
 app.state.active_websockets = {}
 
-# Inisialisasi state baru untuk menyimpan admin_user_id -> room_id yang sedang dilihat
-# Dict[UUID, UUID] -> admin_user_id (UUID) -> room_id (UUID)
 app.state.admin_room_associations = {}
 
-# Middleware CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:4200", "http://localhost:4201"],
@@ -38,21 +32,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Middleware Security Headers
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
 
     response = await call_next(request)
-    # response.headers["Content-Security-Policy"] = "default-src 'self'"
-    # response.headers["X-Content-Type-Options"] = "nosniff"
-    # response.headers["X-Frame-Options"] = "DENY"
-    # response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    # response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Content-Security-Policy"] = "default-src 'self'"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Referrer-Policy"] = "no-referrer"
 
     return response
 
-
-# Tambahkan handler untuk rate limit error
 @app.exception_handler(429)
 async def rate_limit_handler(request: Request, exc):
     return JSONResponse(
@@ -60,7 +51,6 @@ async def rate_limit_handler(request: Request, exc):
         content={"detail": "Rate limit exceeded."},
     )
 
-# Tambahkan handler untuk API Key error
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == 403:
@@ -88,11 +78,17 @@ app.include_router(prompt_endpoint)
 #Daftar route websocket
 app.include_router(chat_ws)
 
-app.mount("/static", StaticFiles(directory="/Users/cghuv/Documents/Project/AGENT-PROD/app/resources/uploaded_files"), name="static_files")
+# app.mount("/static", StaticFiles(directory="/Users/cghuv/Documents/Project/AGENT-PROD/app/resources/uploaded_files"), name="static_files")
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
 
+# Path relatif terhadap folder kerja container (/app)
+static_path = Path("resources/uploaded_files")
+static_path.mkdir(parents=True, exist_ok=True)  
 
-# Rate limit untuk root endpoint
+app.mount("/static", StaticFiles(directory=static_path), name="static_files")
+
 @app.get("/")
-@limiter.limit("10/minute")  # Maksimum 10 request per menit
-async def read_root(request: Request):  # Tambahkan parameter 'request'
-    return {"message": "Welcome to the Service Monitoring Agent!"}
+@limiter.limit("10/minute")  
+async def read_root(request: Request): 
+    return {"message": "Welcome to the Service Monitoring TalkVera!"}

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError # Import SQLAlchemyError
 # Mengimpor dependency service dan API Key
 from services.prompt_service import PromptService, get_prompt_service # Menggunakan service class dan dependency
-from services.verify_api_key_header import api_key_auth # Asumsi dependency api_key_header diimpor dari services.verify_api_key_header
+from middleware.verify_api_key_header import api_key_auth # Asumsi dependency api_key_header diimpor dari services.verify_api_key_header
 # Mengimpor Pydantic model respons dan update
 from schemas.prompt_schema import PromptResponse, PromptUpdate
 from typing import List
@@ -36,7 +36,8 @@ async def get_prompts_endpoint(
         logger.info("Received request to get all prompts.")
         # Memanggil metode instance dari service
         # Jika service.fetch_all_prompts() mendukung pagination, teruskan offset/limit di sini
-        prompts = prompt_service.fetch_all_prompts()
+        # prompts = prompt_service.fetch_all_prompts()
+        prompts =prompt_service.fetch_customer_service_prompt()
         logger.info(f"Returning {len(prompts)} prompts.")
         # Pydantic dengan orm_mode=True akan otomatis mengonversi List[Prompt] menjadi List[PromptResponse]
         return prompts

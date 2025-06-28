@@ -2,25 +2,29 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from agents.customer_service_agent.customer_service_agent import call_customer_service_agent
 from fastapi import WebSocket
-import asyncio
 import time
-import re
 from database.models import RoomConversation, Member, Chat
 from typing import Dict, Optional, List, Any
 from sqlalchemy.exc import SQLAlchemyError
 import uuid
 import logging
-import json
 from datetime import timedelta
 from sqlalchemy.future import select
-from sqlalchemy import update, insert, delete
+from sqlalchemy import update
 import sqlalchemy
 from openai import OpenAI
 from datetime import datetime
-from pathlib import Path
 from agno.media import File
 import base64
 import os
+import asyncio
+
+CLASSIFICATION_CATEGORIES = [
+    "Sapa", "Informasi Umum", "Produk Asuransi Oto", "Produk Asuransi Asri",
+    "Produk Asuransi Sepeda", "Produk Asuransi Apartemen", "Produk Asuransi Ruko",
+    "Produk Asuransi Diri", "Claim", "Payment", "Policy", "Complaint", "Others"
+]
+
 
 client = OpenAI()
 
@@ -36,19 +40,7 @@ class ChatService:
     def classify_zero_shot(self, response_text: str) -> str:
         prompt = f"""
         Kategorikan pesan ini ke salah satu kategori berikut:
-        - Sapa
-        - Informasi Umum
-        - Produk Asuransi Oto
-        - Produk Asuransi Asri
-        - Produk Asuransi Sepeda
-        - Produk Asuransi Apartemen
-        - Produk Asuransi Ruko
-        - Produk Asuransi Diri
-        - Claim
-        - Payment
-        - Policy
-        - Complaint
-        - Others
+        {', '.join(CLASSIFICATION_CATEGORIES)}
 
         Pesan: "{response_text}"
 
@@ -66,7 +58,6 @@ class ChatService:
         return self.active_websockets.get(user_id)
 
     async def get_user_room_id(self, user_id: uuid.UUID) -> Optional[uuid.UUID]:
-        # ... (kode metode ini tetap sama) ...
          try:
              result = await self.db.execute(
                  select(Member.room_conversation_id)
@@ -81,9 +72,8 @@ class ChatService:
              raise
 
     async def find_or_create_room_and_add_member(self, user_id: uuid.UUID, role: str) -> uuid.UUID:
-        # ... (kode metode ini tetap sama) ...
+        
         try:
-            # 1. Cek apakah user sudah punya room terbuka (atau room aktif lainnya)
             result = await self.db.execute(
                 select(RoomConversation.id)
                 .join(Member, Member.room_conversation_id == RoomConversation.id)
@@ -96,7 +86,6 @@ class ChatService:
                 room_uuid = existing_room_id
                 logger.info(f"Found existing room {room_uuid} for user {user_id}.")
 
-                # Pastikan member user ada dan update status online
                 member_result = await self.db.execute(
                     select(Member).where(Member.room_conversation_id == room_uuid, Member.user_id == user_id)
                 )
@@ -111,8 +100,6 @@ class ChatService:
                          await self.db.commit()
                          logger.info(f"Updated user {user_id} online status in room {room_uuid}.")
                 else:
-                    # Jika member user tidak ada di room yang ditemukan (kasus aneh, mungkin data korup),
-                    # buat member baru
                     new_member = Member(
                         id=uuid.uuid4(),
                         room_conversation_id=room_uuid,
@@ -124,16 +111,13 @@ class ChatService:
                     await self.db.commit()
                     logger.warning(f"User {user_id} not found in existing room {room_uuid} database entry, added new member.")
 
-
             else:
-                # 2. Jika tidak ada room terbuka, buat room baru
                 room_uuid = uuid.uuid4()
                 logger.info(f"Creating new room: {room_uuid} for user: {user_id}")
 
-                new_room = RoomConversation(id=room_uuid, status="open", agent_active=True) # <-- agent_active=True secara eksplisit jika default di DB/model tidak jalan
+                new_room = RoomConversation(id=room_uuid, status="open", agent_active=True) 
                 self.db.add(new_room)
 
-                # Tambahkan user sebagai member
                 user_member_id = uuid.uuid4()
                 user_member = Member(
                     id=user_member_id,
@@ -145,7 +129,6 @@ class ChatService:
                 self.db.add(user_member)
                 logger.info(f"Added user member {user_member_id} to new room {room_uuid}.")
 
-                # Tambahkan chatbot sebagai member default
                 chatbot_member_user_id = uuid.uuid4()
                 chatbot_member_id = uuid.uuid4()
                 chatbot_member = Member(
@@ -169,7 +152,6 @@ class ChatService:
             raise
 
     async def save_chat_history(
-       # ... (kode metode ini tetap sama) ...
        self,
        room_conversation_id: uuid.UUID,
        sender_id: uuid.UUID,
@@ -207,7 +189,6 @@ class ChatService:
             raise
         return message
 
-    # --- Metode Baru untuk Mengubah Status Agen di Room ---
     async def set_room_agent_status(self, room_id: uuid.UUID, status: bool):
         """Mengupdate status agent_active untuk room tertentu."""
         logger.info(f"Setting agent_active status for room {room_id} to {status}")
@@ -227,8 +208,6 @@ class ChatService:
             await self.db.rollback()
             raise
 
-
-    # ... (Metode set_admin_room_association dan remove_admin_room_association tetap sama) ...
     async def set_admin_room_association(self, admin_user_id: uuid.UUID, room_id: uuid.UUID):
          logger.info(f"Admin {admin_user_id} joining room {room_id}")
          self.admin_room_associations[admin_user_id] = room_id
@@ -238,8 +217,6 @@ class ChatService:
              room_id = self.admin_room_associations.pop(admin_user_id)
              logger.info(f"Admin {admin_user_id} leaving room {room_id}")
 
-
-    # ... (Metode get_room_history tetap sama) ...
     async def get_room_history(self, room_id: uuid.UUID, limit: int = 50) -> List[Dict[str, Any]]:
          logger.debug(f"Fetching chat history for room {room_id} (limit: {limit})")
          try:
@@ -264,13 +241,9 @@ class ChatService:
          except SQLAlchemyError as e:
              logger.error(f"Error fetching chat history for room {room_id}: {e}", exc_info=True)
              return []
-
-
-    # --- Modifikasi handle_user_message untuk Mengecek Status Agen ---
-
+    
     async def handle_user_message(self, websocket: WebSocket, data: dict, user_id: uuid.UUID, room_id: uuid.UUID, start_time: float):
         type_data = data.get("type")
-        print(f"Handling user message of type: {type_data}")
         file_loc = []
         
         if type_data != "message":
@@ -279,25 +252,21 @@ class ChatService:
             file_size = data.get("file_size")
             file_data_base64 = data.get("file_data")
 
-            print(f"Pesan file dari user {user_id} di room {room_id}: {file_name} ({file_type}, {file_size} bytes)")
+            logger.debug(f"Pesan file dari user {user_id} di room {room_id}: {file_name} ({file_type}, {file_size} bytes)")
 
             if not all([file_name, file_type, file_data_base64]):
                 await websocket.send_json({"success": False, "error": "Data file tidak lengkap"})
                 return
 
-            # 1. Dekode Base64 ke biner
             file_bytes = base64.b64decode(file_data_base64)
 
-            # 2. Tentukan path penyimpanan
-            # Pastikan direktori ini ada atau buat jika belum ada
             upload_dir = "./resources/uploaded_files"
             os.makedirs(upload_dir, exist_ok=True)
 
-            # Buat nama file unik untuk menghindari tabrakan
             unique_filename = f"{uuid.uuid4()}_{file_name}"
             file_path = os.path.join(upload_dir, unique_filename)
             valid_file_path = file_path + ".pdf"
-            # 3. Simpan file ke disk
+            
             with open(file_path, "wb") as f:
                 f.write(file_bytes)
             
@@ -311,14 +280,13 @@ class ChatService:
         
         message = data.get("message")
         
-        print(f"Pesan dari user {user_id} di room {room_id}: {message}")
+        logger.debug(f"Pesan dari user {user_id} di room {room_id}: {message}")
 
         if not message or message == None:
             await websocket.send_json({"success": False, "error": "Pesan diperlukan"})
             return
 
         try:
-            # --- Cek Status Agen di Room ---
             room_result = await self.db.execute(
                 select(RoomConversation.agent_active)
                 .where(RoomConversation.id == room_id)
@@ -326,7 +294,6 @@ class ChatService:
             )
             is_agent_active = room_result.scalar_one_or_none()
 
-            # Simpan pesan user ke history (ini selalu dilakukan)
             await self.save_chat_history(
                  room_conversation_id=room_id,
                  sender_id=user_id,
@@ -341,26 +308,19 @@ class ChatService:
                  role="user" 
             )
             logger.info("User message saved.")
-            # Kirim pesan user kembali ke user itu sendiri untuk konfirmasi UI
-            # await websocket.send_json({"success": True, "data": question, "from": "user", "room_id": str(room_id)})
-
-
+            
             if is_agent_active is False:
-                # Agen tidak aktif, kirim notifikasi ke admin yang melihat room dan keluar
+                
                 logger.info(f"Agent is inactive for room {room_id}. Skipping agent call for user {user_id}.")
-                # Opsional: Kirim pesan otomatis ke user "Admin sedang membantu Anda"
-                # await websocket.send_json({"type": "info", "room_id": str(room_id), "message": "Seorang admin sedang membantu Anda."})
-
-                # Kirim pesan user ke admin yang sedang melihat room ini
+                
                 await self._send_message_to_associated_admins(
                      room_id,
                      {"sender_id": str(user_id), "message": message, "role": "user", "room_id": str(room_id)}
                 )
-                return # Penting: Keluar dari metode, jangan panggil agen
-
-            # --- Jika Agen Aktif, Lanjutkan Proses Pemanggilan Agen ---
+                return 
+            
             logger.info(f"Agent is active for room {room_id}. Calling agent for user {user_id}'s message.")
-            # Cari ID chatbot untuk room ini dari DB
+            
             chatbot_result = await self.db.execute(
                  select(Member.user_id).where(Member.room_conversation_id == room_id, Member.role == "chatbot")
             )
@@ -369,19 +329,28 @@ class ChatService:
             if not chatbot_id:
                  logger.error(f"Chatbot member not found for room {room_id}")
                  await websocket.send_json({"success": False, "error": "Chatbot tidak ditemukan di room ini."})
-                 # Tetap kirim pesan user ke admin meskipun chatbot tidak ada? Tergantung kebutuhan.
+                 
                  await self._send_message_to_associated_admins(
                       room_id,
                       {"sender_id": str(user_id), "message": message, "role": "user", "room_id": str(room_id)}
                  )
-                 return # Keluar jika tidak ada chatbot untuk memproses
+                 return 
 
-            # pdf_path = "/Users/cghuv/Documents/Project/AGENT-PROD/app/resources/uploaded_files/document_product_asrisyariah.pdf"
-            
-            # Panggil agent (asumsi agent.run sync)
             agent = call_customer_service_agent(str(chatbot_id), str(user_id), str(user_id))
+            
+            # import requests
+            
+            # url = "http://localhost:5678/webhook/chat"
+            # payload = {
+            #     "user_id": "test123",
+            #     "text": message
+            # }
+
+            # response_n8n = requests.post(url, json=payload)
+            # logger.debug("response_n8n: ", response_n8n)
+            
             # agent_response = agent.run(message)
-            print(f"file_loc", file_loc)
+            logger.debug(f"file_loc", file_loc)
             agent_response = agent.run(message, files=file_loc)
             
             input_token = getattr(getattr(agent_response.messages[-1], 'metrics', None), 'input_tokens', None)
@@ -389,7 +358,6 @@ class ChatService:
             total_token = getattr(getattr(agent_response.messages[-1], 'metrics', None), 'total_tokens', None)
             tools_call = getattr(agent_response, 'formatted_tool_calls', None)
             content = getattr(agent_response, 'content', None)
-            print(f"Agent response content: {content}")
             
             if not content:
                 category = ""
@@ -398,7 +366,6 @@ class ChatService:
 
             latency_seconds = time.time() - start_time
             latency=timedelta(seconds=latency_seconds)
-
             
             saved_response_message = await self.save_chat_history(
                 room_conversation_id=room_id,
@@ -416,7 +383,7 @@ class ChatService:
             logger.info("Chatbot response saved.")
             
             await websocket.send_json({"success": True, "data": saved_response_message, "from": "chatbot", "room_id": str(room_id)})
-            # Kirim pesan user dan chatbot ke admin yang sedang melihat room ini
+            
             await self._send_message_to_associated_admins(
                  room_id,
                  {"sender_id": str(user_id), "message": message, "role": "user", "room_id": str(room_id)}
@@ -426,32 +393,22 @@ class ChatService:
                  {"sender_id": str(chatbot_id), "message": content, "role": "chatbot", "room_id": str(room_id)}
             )
             
-            #update room_conversation updated_at
             updated_at_room = (
                 update(RoomConversation)
                 .where(RoomConversation.id == room_id)
-                .values(updated_at=datetime.utcnow())  # update eksplisit
+                .values(updated_at=datetime.utcnow())  
             )
             await self.db.execute(updated_at_room)
             await self.db.commit()
 
-
-            # Broadcast notifikasi umum ke SEMUA admin online (jika masih perlu dan berbeda dari stream)
-            # await self._notify_all_online_admins_of_new_message(room_id, user_id, question, content)
-
-
         except Exception as e:
             logger.exception(f"Error handling user message (agent active path) for user {user_id} in room {room_id}:")
-            # Di sini juga penting untuk mengirim pesan user ke admin jika terjadi error agent
-            # await self._send_message_to_associated_admins(
-            #      room_id,
-            #      {"sender_id": str(user_id), "message": question, "role": "user", "room_id": str(room_id)}
-            # )
+            
             await websocket.send_json({"success": False, "error": f"Terjadi kesalahan saat memproses pesan: {e}"})
 
 
     async def handle_chatbot_message(self, websocket: WebSocket, data: dict, sender_id: uuid.UUID, room_id: uuid.UUID):
-        # ... (Logika handler pesan dari chatbot (klien terpisah) tetap sama) ...
+        
         message = data.get("message")
         if not message:
             await websocket.send_json({"error": "Pesan dari chatbot tidak valid."})
@@ -487,7 +444,6 @@ class ChatService:
                     except Exception as e:
                         logger.error(f"Gagal mengirim pesan chatbot ke user {member.user_id} di room {room_id}: {e}", exc_info=True)
 
-            # Kirim pesan chatbot ke admin yang sedang melihat room ini
             await self._send_message_to_associated_admins(
                  room_id,
                  {"sender_id": str(sender_id), "message": message, "role": "chatbot", "room_id": str(room_id)}
@@ -497,32 +453,27 @@ class ChatService:
         except SQLAlchemyError as e:
              logger.error(f"Error fetching members in handle_chatbot_message for room {room_id}: {e}", exc_info=True)
 
-
     async def handle_admin_message(self, websocket: WebSocket, data: dict, sender_id: uuid.UUID, room_id: uuid.UUID):
         
         admin_message = data.get("message")
 
         try:
-            # Periksa apakah target user adalah anggota room yang online
             target_member_result = await self.db.execute(
                 select(Member).where(
                     Member.room_conversation_id == room_id,
-                    # Member.user_id == target_user_id,
                     Member.role == "user",
                     Member.is_online == True
                 )
             )
             target_member = target_member_result.scalar_one_or_none()
-            print("target_member", target_member)
 
             if not target_member:
                 await websocket.send_json({"success": False, "error": "User tidak ditemukan atau tidak aktif dalam room ini"})
                 return
 
             target_conn = await self.get_active_websocket(target_member.user_id)
-            print("target_conn", target_conn)
             if target_conn:
-                # Simpan pesan admin
+                
                 await self.save_chat_history(
                     room_conversation_id=room_id,
                     sender_id=sender_id,
@@ -536,20 +487,17 @@ class ChatService:
                     agent_tools_call=None,
                     role="admin",
                 )
-                # Kirim pesan ke user target
+                
                 await target_conn.send_json({"success": True, "data": admin_message, "from": "admin", "room_id": str(room_id)})
-                # Kirim konfirmasi atau pesan yang sama kembali ke admin yang mengirim
-                # await websocket.send_json({"success": True, "message_sent": admin_message, "target_user_id": target_user_id_str, "room_id": str(room_id)})
+                
                 await websocket.send_json({"success": True, "message_sent": admin_message, "room_id": str(room_id)})
                 logger.info(f"Pesan admin dari {sender_id} ke room {room_id} berhasil dikirim.")
 
-                # Kirim pesan admin ke admin lain yang sedang melihat room ini
                 await self._send_message_to_associated_admins(
                      room_id,
                      {"sender_id": str(sender_id), "message": admin_message, "role": "admin", "room_id": str(room_id)},
                      exclude_admin_id=sender_id
                 )
-
 
             else:
                 await websocket.send_json({"success": False, "error": "WebSocket target user tidak aktif"})
@@ -571,25 +519,21 @@ class ChatService:
         file_size = data.get("file_size")
         file_data_base64 = data.get("file_data")
 
-        print(f"Pesan file dari user {user_id} di room {room_id}: {file_name} ({file_type}, {file_size} bytes)")
+        logger.debug(f"Pesan file dari user {user_id} di room {room_id}: {file_name} ({file_type}, {file_size} bytes)")
 
         if not all([file_name, file_type, file_data_base64]):
             await websocket.send_json({"success": False, "error": "Data file tidak lengkap"})
             return
 
-        # 1. Dekode Base64 ke biner
         file_bytes = base64.b64decode(file_data_base64)
 
-        # 2. Tentukan path penyimpanan
-        # Pastikan direktori ini ada atau buat jika belum ada
         upload_dir = "./resources/uploaded_files"
         os.makedirs(upload_dir, exist_ok=True)
 
-        # Buat nama file unik untuk menghindari tabrakan
         unique_filename = f"{uuid.uuid4()}_{file_name}"
         file_path = os.path.join(upload_dir, unique_filename)
         valid_file_path = file_path
-        # 3. Simpan file ke disk
+        
         with open(file_path, "wb") as f:
             f.write(file_bytes)
         
@@ -600,7 +544,7 @@ class ChatService:
         file_loc = [File(filepath=valid_file_path)]
 
         try:
-            # --- Cek Status Agen di Room ---
+            
             room_result = await self.db.execute(
                 select(RoomConversation.agent_active)
                 .where(RoomConversation.id == room_id)
@@ -608,7 +552,6 @@ class ChatService:
             )
             is_agent_active = room_result.scalar_one_or_none()
 
-            # Simpan pesan user ke history (ini selalu dilakukan)
             await self.save_chat_history(
                  room_conversation_id=room_id,
                  sender_id=user_id,
@@ -623,26 +566,18 @@ class ChatService:
                  role="user" 
             )
             logger.info("User message saved.")
-            # Kirim pesan user kembali ke user itu sendiri untuk konfirmasi UI
-            # await websocket.send_json({"success": True, "data": question, "from": "user", "room_id": str(room_id)})
-
-
+            
             if is_agent_active is False:
-                # Agen tidak aktif, kirim notifikasi ke admin yang melihat room dan keluar
                 logger.info(f"Agent is inactive for room {room_id}. Skipping agent call for user {user_id}.")
-                # Opsional: Kirim pesan otomatis ke user "Admin sedang membantu Anda"
-                # await websocket.send_json({"type": "info", "room_id": str(room_id), "message": "Seorang admin sedang membantu Anda."})
-
-                # Kirim pesan user ke admin yang sedang melihat room ini
+                
                 await self._send_message_to_associated_admins(
                      room_id,
                      {"sender_id": str(user_id), "message": "file", "role": "user", "room_id": str(room_id)}
                 )
-                return # Penting: Keluar dari metode, jangan panggil agen
+                return 
 
-            # --- Jika Agen Aktif, Lanjutkan Proses Pemanggilan Agen ---
             logger.info(f"Agent is active for room {room_id}. Calling agent for user {user_id}'s message.")
-            # Cari ID chatbot untuk room ini dari DB
+            
             chatbot_result = await self.db.execute(
                  select(Member.user_id).where(Member.room_conversation_id == room_id, Member.role == "chatbot")
             )
@@ -651,19 +586,15 @@ class ChatService:
             if not chatbot_id:
                  logger.error(f"Chatbot member not found for room {room_id}")
                  await websocket.send_json({"success": False, "error": "Chatbot tidak ditemukan di room ini."})
-                 # Tetap kirim pesan user ke admin meskipun chatbot tidak ada? Tergantung kebutuhan.
+                 
                  await self._send_message_to_associated_admins(
                       room_id,
                       {"sender_id": str(user_id), "message": "file", "role": "user", "room_id": str(room_id)}
                  )
-                 return # Keluar jika tidak ada chatbot untuk memproses
+                 return 
 
-            # pdf_path = "/Users/cghuv/Documents/Project/AGENT-PROD/app/resources/uploaded_files/document_product_asrisyariah.pdf"
-            
-            # Panggil agent (asumsi agent.run sync)
             agent = call_customer_service_agent(str(chatbot_id), str(user_id), str(user_id))
-            # agent_response = agent.run(message)
-            print(f"file_loc", file_loc)
+
             agent_response = agent.run("Berikan kesimpulan dari document ini.", files=file_loc)
             
             input_token = getattr(getattr(agent_response.messages[-1], 'metrics', None), 'input_tokens', None)
@@ -671,7 +602,6 @@ class ChatService:
             total_token = getattr(getattr(agent_response.messages[-1], 'metrics', None), 'total_tokens', None)
             tools_call = getattr(agent_response, 'formatted_tool_calls', None)
             content = getattr(agent_response, 'content', None)
-            print(f"Agent response content: {content}")
             
             if not content:
                 category = ""
@@ -681,7 +611,6 @@ class ChatService:
             latency_seconds = time.time() - start_time
             latency=timedelta(seconds=latency_seconds)
 
-            
             saved_response_message = await self.save_chat_history(
                 room_conversation_id=room_id,
                 sender_id=chatbot_id,
@@ -698,7 +627,7 @@ class ChatService:
             logger.info("Chatbot response saved.")
             
             await websocket.send_json({"success": True, "data": saved_response_message, "from": "chatbot", "room_id": str(room_id)})
-            # Kirim pesan user dan chatbot ke admin yang sedang melihat room ini
+            
             await self._send_message_to_associated_admins(
                  room_id,
                  {"sender_id": str(user_id), "message": "file", "role": "user", "room_id": str(room_id)}
@@ -707,31 +636,20 @@ class ChatService:
                  room_id,
                  {"sender_id": str(chatbot_id), "message": content, "role": "chatbot", "room_id": str(room_id)}
             )
-            
-            #update room_conversation updated_at
+
             updated_at_room = (
                 update(RoomConversation)
                 .where(RoomConversation.id == room_id)
-                .values(updated_at=datetime.utcnow())  # update eksplisit
+                .values(updated_at=datetime.utcnow())  
             )
             await self.db.execute(updated_at_room)
             await self.db.commit()
 
-
-            # Broadcast notifikasi umum ke SEMUA admin online (jika masih perlu dan berbeda dari stream)
-            # await self._notify_all_online_admins_of_new_message(room_id, user_id, question, content)
-
-
         except Exception as e:
             logger.exception(f"Error handling user message (agent active path) for user {user_id} in room {room_id}:")
-            # Di sini juga penting untuk mengirim pesan user ke admin jika terjadi error agent
-            # await self._send_message_to_associated_admins(
-            #      room_id,
-            #      {"sender_id": str(user_id), "message": question, "role": "user", "room_id": str(room_id)}
-            # )
+            
             await websocket.send_json({"success": False, "error": f"Terjadi kesalahan saat memproses pesan: {e}"})
 
-    # ... (handle_disconnect tetap sama) ...
     async def handle_disconnect(self, user_id: uuid.UUID, role: str, room_id: Optional[uuid.UUID]):
         logger.info(f"{role.capitalize()} {user_id} terputus.")
         if role == "admin":
@@ -757,7 +675,6 @@ class ChatService:
         else:
             logger.info(f"User {user_id} disconnected without an associated room_id.")
 
-    # ... (_send_message_to_associated_admins tetap sama) ...
     async def _send_message_to_associated_admins(self, room_id: uuid.UUID, message_data: Dict[str, Any], exclude_admin_id: Optional[uuid.UUID] = None):
         """Mengirim pesan baru ke semua admin yang saat ini diasosiasikan dengan room_id ini."""
         logger.debug(f"Sending new message from room {room_id} to associated admins.")
@@ -772,7 +689,7 @@ class ChatService:
                     if admin_websocket:
                         try:
                             message_data_to_send = message_data.copy()
-                            message_data_to_send["type"] = "room_message" # Tipe pesan untuk stream di admin UI
+                            message_data_to_send["type"] = "room_message" 
                             await admin_websocket.send_json(message_data_to_send)
                             logger.debug(f"Sent message from room {room_id} to associated admin {admin_user_id}.")
                         except Exception as e:
@@ -783,7 +700,6 @@ class ChatService:
         except Exception as e:
             logger.error(f"Error sending message to associated admins for room {room_id}: {e}", exc_info=True)
 
-    # ... (_notify_all_online_admins_of_new_message tetap sama) ...
     async def _notify_all_online_admins_of_new_message(self, room_id: uuid.UUID, user_id: uuid.UUID, question: str, answer: str):
         logger.info(f"Attempting to broadcast message notification from {user_id} in room {room_id} to ALL online admins.")
         try:
@@ -816,7 +732,6 @@ class ChatService:
         except SQLAlchemyError as e:
             logger.error(f"Error fetching online admins for notification broadcast: {e}", exc_info=True)
 
-    # ... (broadcast_active_rooms tetap sama) ...
     async def broadcast_active_rooms(self):
          logger.info("Attempting to broadcast active rooms to online admins.")
          try:
@@ -831,19 +746,18 @@ class ChatService:
                  .outerjoin(online_members_count_query, RoomConversation.id == online_members_count_query.c.room_conversation_id)
                  .where(RoomConversation.status != "closed")
              )
-             # Gunakan .all() atau .scalars().all() sesuai kebutuhan; .all() akan memberikan tuple (id, status, count, agent_active)
+             
              room_data_list = room_data_results.all()
 
-
              active_rooms_data = []
-             for room_id, status, online_count, agent_active_status in room_data_list: # <-- Ambil status agent
+             for room_id, status, online_count, agent_active_status in room_data_list: 
                   num_members_online = online_count if online_count is not None else 0
 
                   active_rooms_data.append({
                      "room_id": str(room_id),
                      "status": status,
                      "online_members": num_members_online,
-                     "agent_active": agent_active_status, # <-- Kirim status agent
+                     "agent_active": agent_active_status,
                   })
 
              online_admins_result = await self.db.execute(
@@ -852,7 +766,7 @@ class ChatService:
              online_admins = online_admins_result.scalars().all()
 
              logger.debug(f"Found {len(online_admins)} online admins for active rooms broadcast.")
-
+                
              for admin_member in online_admins:
                  admin_user_id = admin_member.user_id
                  admin_websocket = await self.get_active_websocket(admin_user_id)

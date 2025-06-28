@@ -1,17 +1,15 @@
 # app/services/room_service.py
-import logging # Import logging
+import logging 
 from sqlalchemy.orm import Session
-from sqlalchemy.sql import select # Keep select for potential future use, though query is used now
-from sqlalchemy.exc import SQLAlchemyError # Import SQLAlchemyError for specific error handling
-from fastapi import Depends # Import Depends for dependency function
-from typing import List, Dict, Any # Diperlukan untuk type hinting
-# Asumsi model RoomConversation diimpor dari database.models
-from database.models import RoomConversation, Chat
-# Asumsi config_db diimpor dari core.config_db
+from sqlalchemy.exc import SQLAlchemyError 
+from fastapi import Depends 
+from typing import List
+from database.models import RoomConversation
 from core.config_db import config_db
+from typing import Optional
 
-# Konfigurasi logging dasar (sesuaikan dengan setup logging aplikasi Anda)
 logging.basicConfig(level=logging.INFO)
+
 logger = logging.getLogger(__name__)
 
 class RoomService:
@@ -27,8 +25,7 @@ class RoomService:
         """
         self.db = db
 
-    # Metode untuk mengambil semua room dengan pagination
-    def get_all_rooms(self, offset: int, limit: int) -> List[RoomConversation]:
+    def get_all_rooms(self, offset: int, limit: int) -> Optional[List[RoomConversation]]:
         """
         Mengambil semua data RoomConversation dengan pagination.
         Cocok untuk tampilan admin.
@@ -44,20 +41,18 @@ class RoomService:
         """
         try:
             logger.info(f"Fetching all rooms with offset={offset}, limit={limit}.")
-            # Menggunakan self.db dan menerapkan pagination
+            
             rooms = self.db.query(RoomConversation)\
                 .offset(offset)\
                 .limit(limit)\
-                .all() # Menggunakan .all() setelah limit/offset
+                .all() 
             logger.info(f"Successfully fetched {len(rooms)} room entries.")
             return rooms
+        
         except SQLAlchemyError as e:
-            # Log error detail di sini, tapi biarkan exception propagate
             logger.error(f"SQLAlchemy Error fetching all rooms: {e}", exc_info=True)
-            raise e # Re-raise SQLAlchemyError
+            raise e 
 
-    # --- Metode Baru: Mengambil hanya active room dengan pagination ---
-    # Asumsi ada kolom 'status' di model RoomConversation dan nilai 'active' menandakan room aktif
     def get_active_rooms(self, offset: int, limit: int) -> List[RoomConversation]:
         """
         Mengambil data RoomConversation yang aktif dengan pagination.
@@ -73,7 +68,7 @@ class RoomService:
         """
         try:
             logger.info(f"Fetching active rooms with offset={offset}, limit={limit}.")
-            # Menggunakan self.db, memfilter berdasarkan status='active', dan menerapkan pagination
+            
             active_rooms = self.db.query(RoomConversation)\
                 .filter(RoomConversation.status == 'open')\
                 .order_by(RoomConversation.updated_at.asc())\
@@ -85,10 +80,8 @@ class RoomService:
             return active_rooms
         except SQLAlchemyError as e:
             logger.error(f"SQLAlchemy Error fetching active rooms: {e}", exc_info=True)
-            raise e # Re-raise SQLAlchemyError
+            raise e 
 
-
-# Dependency function untuk menyediakan instance RoomService
 def get_room_service(db: Session = Depends(config_db)):
     """
     Dependency untuk mendapatkan instance RoomService dengan sesi database.

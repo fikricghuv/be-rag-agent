@@ -8,7 +8,7 @@ class RoomConversation(Base):
     __tablename__ = "room_conversation"
     __table_args__ = {"schema": "ai"}
 
-    id = Column(Uuid, primary_key=True, default=uuid.uuid4) # Use Uuid
+    id = Column(Uuid, primary_key=True, default=uuid.uuid4) 
     name = Column(String(255))
     description = Column(String)
     status = Column(String(20), nullable=False, default='open')
@@ -16,9 +16,8 @@ class RoomConversation(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     agent_active = Column(Boolean, default=True, nullable=False)
 
-    # relationship dengan tabel members
+    # relationship dengan tabel Member dan Chat
     members = relationship("Member", back_populates="room_conversation", cascade="all, delete-orphan")
-    # relationship dengan tabel chats
     chats = relationship("Chat", back_populates="room_conversation", cascade="all, delete-orphan")
 
     def __repr__(self):

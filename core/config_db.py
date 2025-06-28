@@ -4,13 +4,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import declarative_base, sessionmaker
 
+async_engine = create_async_engine(URL_DB_POSTGRES, echo=True) 
 
-# Konfigurasi Database
-# DATABASE_URL = "postgresql+psycopg://ai:ai@localhost:5532/ai"
-
-async_engine = create_async_engine(URL_DB_POSTGRES, echo=True) # echo=True untuk melihat query SQL
-
-# Ganti sessionmaker menjadi async_sessionmaker
 AsyncSessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
@@ -18,7 +13,7 @@ AsyncSessionLocal = sessionmaker(
     class_=AsyncSession
 )
 
-Base = declarative_base() # Jika Anda menggunakan declarative_base di sini
+Base = declarative_base() 
 
 async def get_db():
     """Async Dependency for database session"""
@@ -28,12 +23,10 @@ async def get_db():
         finally:
             await db.close()
 
-# Anda mungkin perlu fungsi init_db async jika menggunakan Alembic atau ORM sync sebelumnya
 async def init_db():
     async with async_engine.begin() as conn:
-        # Contoh jika menggunakan Base.metadata.create_all
-        # await conn.run_sync(Base.metadata.create_all)
-        pass # Sesuaikan dengan kebutuhan inisialisasi DB Anda
+        
+        pass 
     
 def config_db():
 

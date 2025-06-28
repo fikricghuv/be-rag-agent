@@ -1,9 +1,7 @@
 from datetime import datetime
 from pydantic import BaseModel
 
-# Schema Response
 class CustomerFeedbackResponse(BaseModel):
-    # id: int
     feedback_from_customer: str
     sentiment: str
     potential_actions: str
@@ -14,3 +12,7 @@ class CustomerFeedbackResponse(BaseModel):
 
     class Config:
         from_attributes = True
+        
+class CategoryFrequencyResponse(BaseModel):
+    category: str
+    frequency: int
