@@ -25,7 +25,7 @@ app.state.admin_room_associations = {}
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4200", "http://localhost:4201"],
+    allow_origins=["http://localhost:4200", "http://localhost:4201", "http://localhost:4202"],
     # allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],

@@ -18,6 +18,12 @@ from agno.media import File
 import base64
 import os
 import asyncio
+import subprocess
+import tempfile
+import os
+from agno.media import Audio
+from agno.agent import Agent
+from agno.models.openai import OpenAIChat
 
 CLASSIFICATION_CATEGORIES = [
     "Sapa", "Informasi Umum", "Produk Asuransi Oto", "Produk Asuransi Asri",
@@ -511,144 +517,267 @@ class ChatService:
             await websocket.send_json({"success": False, "error": f"Terjadi kesalahan: {e}"})
             
     async def handle_user_file(self, websocket: WebSocket, data: dict, user_id: uuid.UUID, room_id: uuid.UUID, start_time: float):
-        
-        file_loc = []
-        
-        file_name = data.get("file_name")
-        file_type = data.get("file_type")
-        file_size = data.get("file_size")
-        file_data_base64 = data.get("file_data")
-
-        logger.debug(f"Pesan file dari user {user_id} di room {room_id}: {file_name} ({file_type}, {file_size} bytes)")
-
-        if not all([file_name, file_type, file_data_base64]):
-            await websocket.send_json({"success": False, "error": "Data file tidak lengkap"})
-            return
-
-        file_bytes = base64.b64decode(file_data_base64)
-
-        upload_dir = "./resources/uploaded_files"
-        os.makedirs(upload_dir, exist_ok=True)
-
-        unique_filename = f"{uuid.uuid4()}_{file_name}"
-        file_path = os.path.join(upload_dir, unique_filename)
-        valid_file_path = file_path
-        
-        with open(file_path, "wb") as f:
-            f.write(file_bytes)
-        
-        file_url = f"http://localhost:8001/static/{unique_filename}" 
-
-        logger.info(f"File '{file_name}' saved to {file_path} with URL {file_url}")
-        
-        file_loc = [File(filepath=valid_file_path)]
-
         try:
-            
-            room_result = await self.db.execute(
-                select(RoomConversation.agent_active)
-                .where(RoomConversation.id == room_id)
-                .limit(1)
-            )
-            is_agent_active = room_result.scalar_one_or_none()
+            # --- Validasi Awal ---
+            file_name = data.get("file_name")
+            file_type = data.get("file_type")
+            file_size = data.get("file_size")
+            file_data_base64 = data.get("file_data")
 
+            if not all([file_name, file_type, file_data_base64]):
+                await websocket.send_json({"success": False, "error": "Data file tidak lengkap"})
+                return
+
+            logger.debug(f"User {user_id} mengirim file '{file_name}' ({file_type}, {file_size} bytes) di room {room_id}")
+
+            # --- Decode dan Simpan File ---
+            try:
+                file_bytes = base64.b64decode(file_data_base64)
+            except Exception as decode_err:
+                logger.exception("Gagal mendekode file base64." + decode_err)
+                await websocket.send_json({"success": False, "error": "Gagal membaca file. Format base64 tidak valid."})
+                return
+
+            upload_dir = "./resources/uploaded_files"
+            os.makedirs(upload_dir, exist_ok=True)
+            unique_filename = f"{uuid.uuid4()}_{file_name}"
+            file_path = os.path.join(upload_dir, unique_filename)
+            with open(file_path, "wb") as f:
+                f.write(file_bytes)
+
+            file_url = f"http://localhost:8001/static/{unique_filename}"
+            logger.info(f"File disimpan di {file_path}, tersedia di {file_url}")
+
+            # --- Simpan ke Riwayat Percakapan (user file) ---
             await self.save_chat_history(
-                 room_conversation_id=room_id,
-                 sender_id=user_id,
-                 message="file",
-                 agent_response_category=None,
-                 agent_response_latency=None,
-                 agent_total_tokens=None,
-                 agent_input_tokens=None,
-                 agent_output_tokens=None,
-                 agent_other_metrics=None,
-                 agent_tools_call=None,
-                 role="user" 
+                room_conversation_id=room_id,
+                sender_id=user_id,
+                message="upload file | "+ unique_filename,
+                agent_response_category=None,
+                agent_response_latency=None,
+                agent_total_tokens=None,
+                agent_input_tokens=None,
+                agent_output_tokens=None,
+                agent_other_metrics=None,
+                agent_tools_call=None,
+                role="user"
             )
-            logger.info("User message saved.")
-            
-            if is_agent_active is False:
-                logger.info(f"Agent is inactive for room {room_id}. Skipping agent call for user {user_id}.")
-                
-                await self._send_message_to_associated_admins(
-                     room_id,
-                     {"sender_id": str(user_id), "message": "file", "role": "user", "room_id": str(room_id)}
-                )
-                return 
 
-            logger.info(f"Agent is active for room {room_id}. Calling agent for user {user_id}'s message.")
-            
+            # --- Kirim ke Admin ---
+            await self._send_message_to_associated_admins(
+                room_id,
+                {"sender_id": str(user_id), "message": "upload file | "+ unique_filename, "role": "user", "room_id": str(room_id)}
+            )
+
+            # --- Cek apakah Agent Aktif ---
+            result = await self.db.execute(
+                select(RoomConversation.agent_active).where(RoomConversation.id == room_id).limit(1)
+            )
+            is_agent_active = result.scalar_one_or_none()
+
+            if not is_agent_active:
+                logger.info(f"Agent tidak aktif di room {room_id}, tidak memanggil agent.")
+                return
+
+            # --- Persiapkan file untuk agent ---
+            file_loc = [File(filepath=file_path)]
             chatbot_result = await self.db.execute(
-                 select(Member.user_id).where(Member.room_conversation_id == room_id, Member.role == "chatbot")
+                select(Member.user_id).where(Member.room_conversation_id == room_id, Member.role == "chatbot")
             )
             chatbot_id = chatbot_result.scalar_one_or_none()
 
             if not chatbot_id:
-                 logger.error(f"Chatbot member not found for room {room_id}")
-                 await websocket.send_json({"success": False, "error": "Chatbot tidak ditemukan di room ini."})
-                 
-                 await self._send_message_to_associated_admins(
-                      room_id,
-                      {"sender_id": str(user_id), "message": "file", "role": "user", "room_id": str(room_id)}
-                 )
-                 return 
+                logger.warning(f"Chatbot tidak ditemukan di room {room_id}")
+                await websocket.send_json({"success": False, "error": "Chatbot tidak ditemukan di room ini."})
+                return
 
+            # --- Panggil Agent ---
             agent = call_customer_service_agent(str(chatbot_id), str(user_id), str(user_id))
+            agent_response = agent.run("""berikan 1 kalimat inti dari dokumen tersebut dan 
+                                       tanyakan kepada user apa yang ingin diketahui dari dokumen ini.""", files=file_loc)
 
-            agent_response = agent.run("Berikan kesimpulan dari document ini.", files=file_loc)
-            
-            input_token = getattr(getattr(agent_response.messages[-1], 'metrics', None), 'input_tokens', None)
-            output_token = getattr(getattr(agent_response.messages[-1], 'metrics', None), 'output_tokens', None)
-            total_token = getattr(getattr(agent_response.messages[-1], 'metrics', None), 'total_tokens', None)
-            tools_call = getattr(agent_response, 'formatted_tool_calls', None)
-            content = getattr(agent_response, 'content', None)
-            
-            if not content:
-                category = ""
-            else:
-                category = self.classify_zero_shot(content)
+            # --- Ekstrak metrik dan hasil ---
+            metrics = getattr(agent_response.messages[-1], 'metrics', None)
+            content = getattr(agent_response, 'content', '')
 
             latency_seconds = time.time() - start_time
-            latency=timedelta(seconds=latency_seconds)
+            category = self.classify_zero_shot(content) if content else ""
 
-            saved_response_message = await self.save_chat_history(
+            # --- Simpan respons agent (chatbot) ---
+            await self.save_chat_history(
                 room_conversation_id=room_id,
                 sender_id=chatbot_id,
                 message=content,
                 agent_response_category=category,
-                agent_response_latency=latency,
-                agent_total_tokens=total_token,
-                agent_input_tokens=input_token,
-                agent_output_tokens=output_token,
+                agent_response_latency=timedelta(seconds=latency_seconds),
+                agent_total_tokens=getattr(metrics, 'total_tokens', None),
+                agent_input_tokens=getattr(metrics, 'input_tokens', None),
+                agent_output_tokens=getattr(metrics, 'output_tokens', None),
                 agent_other_metrics=None,
-                agent_tools_call=tools_call,
-                role="chatbot" 
-            )
-            logger.info("Chatbot response saved.")
-            
-            await websocket.send_json({"success": True, "data": saved_response_message, "from": "chatbot", "room_id": str(room_id)})
-            
-            await self._send_message_to_associated_admins(
-                 room_id,
-                 {"sender_id": str(user_id), "message": "file", "role": "user", "room_id": str(room_id)}
-            )
-            await self._send_message_to_associated_admins(
-                 room_id,
-                 {"sender_id": str(chatbot_id), "message": content, "role": "chatbot", "room_id": str(room_id)}
+                agent_tools_call=getattr(agent_response, 'formatted_tool_calls', None),
+                role="chatbot"
             )
 
-            updated_at_room = (
+            # --- Kirim ke User & Admins ---
+            await websocket.send_json({
+                "success": True,
+                "from": "chatbot",
+                "room_id": str(room_id),
+                "message_type": "message",
+                "data": content
+            })
+
+            await self._send_message_to_associated_admins(
+                room_id,
+                {"sender_id": str(chatbot_id), "message": content, "role": "chatbot", "room_id": str(room_id)}
+            )
+
+            await self.db.execute(
                 update(RoomConversation)
                 .where(RoomConversation.id == room_id)
-                .values(updated_at=datetime.utcnow())  
+                .values(updated_at=datetime.utcnow())
             )
-            await self.db.execute(updated_at_room)
             await self.db.commit()
 
         except Exception as e:
-            logger.exception(f"Error handling user message (agent active path) for user {user_id} in room {room_id}:")
+            logger.exception(f"Gagal menangani file dari user {user_id} di room {room_id}")
+            await websocket.send_json({"success": False, "error": f"Terjadi kesalahan saat memproses file: {e}"})
             
-            await websocket.send_json({"success": False, "error": f"Terjadi kesalahan saat memproses pesan: {e}"})
+    async def handle_user_audio(self, websocket: WebSocket, data: dict, user_id: uuid.UUID, room_id: uuid.UUID, start_time: float):
+
+        file_name = data.get("file_name")
+        mime_type = data.get("mime_type")  # e.g., "audio/webm" or "audio/wav"
+        duration = data.get("duration")
+        file_data_base64 = data.get("file_data")
+
+        logger.debug(f"Voice note from user {user_id} in room {room_id}: {file_name}, type={mime_type}, duration={duration}")
+
+        if not all([file_name, mime_type, file_data_base64]):
+            await websocket.send_json({"success": False, "error": "Data voice note tidak lengkap"})
+            return
+
+        file_bytes = base64.b64decode(file_data_base64)
+
+        # Save original file
+        upload_dir = "./resources/uploaded_files"
+        os.makedirs(upload_dir, exist_ok=True)
+        unique_filename = f"{uuid.uuid4()}_{file_name}"
+        original_file_path = os.path.join(upload_dir, unique_filename)
+
+        with open(original_file_path, "wb") as f:
+            f.write(file_bytes)
+
+        file_url = f"http://localhost:8001/static/{unique_filename}"
+        logger.info(f"Voice note saved to {original_file_path}, URL: {file_url}")
+
+        # Convert to WAV if webm
+        try:
+            audio_format = self.detect_audio_format(mime_type)
+
+            if audio_format == "webm":
+                with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as tmp_in:
+                    tmp_in.write(file_bytes)
+                    tmp_in.flush()
+                    webm_path = tmp_in.name
+
+                wav_path = webm_path.replace(".webm", ".wav")
+
+                subprocess.run(
+                    ["ffmpeg", "-y", "-i", webm_path, "-ar", "16000", "-ac", "1", wav_path],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True
+                )
+
+                with open(wav_path, "rb") as f:
+                    file_bytes = f.read()
+
+                audio_format = "wav"
+
+                os.remove(webm_path)
+                os.remove(wav_path)
+
+        except Exception as conv_err:
+            logger.exception("Failed to convert webm to wav:")
+            await websocket.send_json({"success": False, "error": f"Gagal mengonversi audio: {conv_err}"})
+            return
+
+        try:
+            chatbot_result = await self.db.execute(
+                select(Member.user_id).where(Member.room_conversation_id == room_id, Member.role == "chatbot")
+            )
+            chatbot_id = chatbot_result.scalar_one_or_none()
+
+            if not chatbot_id:
+                logger.error(f"Chatbot not found for room {room_id}")
+                await websocket.send_json({"success": False, "error": "Chatbot tidak ditemukan di room ini."})
+                return
+
+            
+            agentTranscriber = Agent(
+                model=OpenAIChat(id="gpt-4o-audio-preview", modalities=["text"]),
+                markdown=True,
+            )
+            transcribe = agentTranscriber.run(
+                "translate ini kedalam bahasa indonesia, untuk diolah customer service agent.", audio=[Audio(content=file_bytes, format="wav")]
+            )
+
+            content_translate = getattr(transcribe, 'content', '')
+            
+            logger.info("content_translate : " + content_translate)
+            
+            agent = call_customer_service_agent(str(chatbot_id), str(user_id), str(user_id))
+            
+            agent_response = agent.run(content_translate)
+            
+            content = getattr(agent_response, 'content', '')
+            
+            if not content_translate:
+                await websocket.send_json({"success": False, "error": "Tidak dapat mengekstrak isi voice note."})
+                return
+
+            # Simpan history voice note user
+            await self.save_chat_history(
+                room_conversation_id=room_id,
+                sender_id=user_id,
+                message="voice_note | "+content_translate,
+                role="user"
+            )
+
+            latency_seconds = time.time() - start_time
+            latency = timedelta(seconds=latency_seconds)
+
+            # Simpan response dari agent
+            await self.save_chat_history(
+                room_conversation_id=room_id,
+                sender_id=chatbot_id,
+                message=content,
+                role="chatbot",
+                agent_response_latency=latency,
+                agent_response_category=self.classify_zero_shot(content),
+                agent_input_tokens=getattr(getattr(agent_response.messages[-1], 'metrics', None), 'input_tokens', None),
+                agent_output_tokens=getattr(getattr(agent_response.messages[-1], 'metrics', None), 'output_tokens', None),
+                agent_total_tokens=getattr(getattr(agent_response.messages[-1], 'metrics', None), 'total_tokens', None),
+                agent_tools_call=getattr(agent_response, 'formatted_tool_calls', None)
+            )
+
+            await websocket.send_json({"success": True, "data": content, "from": "chatbot", "room_id": str(room_id)})
+
+        except Exception as e:
+            logger.exception("Error processing voice note:")
+            await websocket.send_json({"success": False, "error": f"Terjadi kesalahan saat memproses voice note: {e}"})
+
+
+    def detect_audio_format(self, mime_type: str) -> str:
+        """Convert MIME type to agno.Audio format string."""
+        if "webm" in mime_type:
+            return "webm"
+        elif "wav" in mime_type:
+            return "wav"
+        elif "mp3" in mime_type:
+            return "mp3"
+        else:
+            return "wav"
+
+
 
     async def handle_disconnect(self, user_id: uuid.UUID, role: str, room_id: Optional[uuid.UUID]):
         logger.info(f"{role.capitalize()} {user_id} terputus.")

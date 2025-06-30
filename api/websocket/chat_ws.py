@@ -123,6 +123,15 @@ async def chat_ws(
                      else:
                          logger.warning(f"User {user_uuid} mengirim file tanpa room_id terasosiasi.")
                          await websocket.send_json({"success": False, "error": "Anda tidak terasosiasi dengan room chat."})
+                         
+            elif message_type == "voice_note":
+                 if role == "user":
+                     
+                     if room_uuid:
+                         await chat_service.handle_user_audio(websocket, data, user_uuid, room_uuid, start_time)
+                     else:
+                         logger.warning(f"User {user_uuid} mengirim audio tanpa room_id terasosiasi.")
+                         await websocket.send_json({"success": False, "error": "Anda tidak terasosiasi dengan room chat."})
 
             else:
                  logger.warning(f"Tipe pesan tidak dikenali atau tidak diizinkan untuk role {role}: {message_type}, data: {data}")
