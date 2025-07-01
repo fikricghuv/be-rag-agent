@@ -17,7 +17,6 @@ from datetime import datetime
 from agno.media import File
 import base64
 import os
-import asyncio
 import subprocess
 import tempfile
 import os
@@ -38,10 +37,10 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 class ChatService:
-    def __init__(self, db: AsyncSession, active_websockets: Dict[uuid.UUID, WebSocket], admin_room_associations: Dict[uuid.UUID, uuid.UUID]):
+    def __init__(self, db: AsyncSession, redis, active_websockets: Dict[uuid.UUID, WebSocket]):
         self.db: AsyncSession = db
         self.active_websockets = active_websockets
-        self.admin_room_associations = admin_room_associations
+        self.redis = redis
         
     def classify_zero_shot(self, response_text: str) -> str:
         prompt = f"""
@@ -215,13 +214,26 @@ class ChatService:
             raise
 
     async def set_admin_room_association(self, admin_user_id: uuid.UUID, room_id: uuid.UUID):
-         logger.info(f"Admin {admin_user_id} joining room {room_id}")
-         self.admin_room_associations[admin_user_id] = room_id
+        logger.info(f"Admin {admin_user_id} joining room {room_id}")
+        try:
+            await self.redis.set(f"admin_room:{str(admin_user_id)}", str(room_id))
+        except Exception as e:
+            logger.error(f"Gagal menyimpan asosiasi admin-room di Redis untuk {admin_user_id}: {e}")
 
-    async def remove_admin_room_association(self, admin_user_id: uuid.UUID):
-         if admin_user_id in self.admin_room_associations:
-             room_id = self.admin_room_associations.pop(admin_user_id)
-             logger.info(f"Admin {admin_user_id} leaving room {room_id}")
+    async def get_admin_room_association(self, admin_user_id: uuid.UUID) -> Optional[uuid.UUID]:
+        try:
+            room_id_bytes = await self.redis.get(f"admin_room:{str(admin_user_id)}")
+            if room_id_bytes:
+                return uuid.UUID(room_id_bytes.decode('utf-8'))
+        except Exception as e:
+            logger.error(f"Gagal mendapatkan asosiasi admin-room dari Redis untuk {admin_user_id}: {e}")
+        return None
+    
+    async def get_admin_room_association(self, admin_user_id: uuid.UUID) -> Optional[uuid.UUID]:
+        room_id_bytes = await self.redis.get(f"admin_room:{str(admin_user_id)}")
+        if room_id_bytes:
+            return uuid.UUID(room_id_bytes.decode('utf-8'))
+        return None
 
     async def get_room_history(self, room_id: uuid.UUID, limit: int = 50) -> List[Dict[str, Any]]:
          logger.debug(f"Fetching chat history for room {room_id} (limit: {limit})")
@@ -455,7 +467,6 @@ class ChatService:
                  {"sender_id": str(sender_id), "message": message, "role": "chatbot", "room_id": str(room_id)}
             )
 
-
         except SQLAlchemyError as e:
              logger.error(f"Error fetching members in handle_chatbot_message for room {room_id}: {e}", exc_info=True)
 
@@ -518,7 +529,7 @@ class ChatService:
             
     async def handle_user_file(self, websocket: WebSocket, data: dict, user_id: uuid.UUID, room_id: uuid.UUID, start_time: float):
         try:
-            # --- Validasi Awal ---
+            
             file_name = data.get("file_name")
             file_type = data.get("file_type")
             file_size = data.get("file_size")
@@ -530,7 +541,6 @@ class ChatService:
 
             logger.debug(f"User {user_id} mengirim file '{file_name}' ({file_type}, {file_size} bytes) di room {room_id}")
 
-            # --- Decode dan Simpan File ---
             try:
                 file_bytes = base64.b64decode(file_data_base64)
             except Exception as decode_err:
@@ -548,7 +558,6 @@ class ChatService:
             file_url = f"http://localhost:8001/static/{unique_filename}"
             logger.info(f"File disimpan di {file_path}, tersedia di {file_url}")
 
-            # --- Simpan ke Riwayat Percakapan (user file) ---
             await self.save_chat_history(
                 room_conversation_id=room_id,
                 sender_id=user_id,
@@ -563,13 +572,11 @@ class ChatService:
                 role="user"
             )
 
-            # --- Kirim ke Admin ---
             await self._send_message_to_associated_admins(
                 room_id,
-                {"sender_id": str(user_id), "message": "upload file | "+ unique_filename, "role": "user", "room_id": str(room_id)}
+                {"sender_id": str(user_id), "message": "upload file | "+ unique_filename, "urlFile":file_url, "role": "user", "room_id": str(room_id)}
             )
 
-            # --- Cek apakah Agent Aktif ---
             result = await self.db.execute(
                 select(RoomConversation.agent_active).where(RoomConversation.id == room_id).limit(1)
             )
@@ -579,7 +586,6 @@ class ChatService:
                 logger.info(f"Agent tidak aktif di room {room_id}, tidak memanggil agent.")
                 return
 
-            # --- Persiapkan file untuk agent ---
             file_loc = [File(filepath=file_path)]
             chatbot_result = await self.db.execute(
                 select(Member.user_id).where(Member.room_conversation_id == room_id, Member.role == "chatbot")
@@ -591,19 +597,16 @@ class ChatService:
                 await websocket.send_json({"success": False, "error": "Chatbot tidak ditemukan di room ini."})
                 return
 
-            # --- Panggil Agent ---
             agent = call_customer_service_agent(str(chatbot_id), str(user_id), str(user_id))
             agent_response = agent.run("""berikan 1 kalimat inti dari dokumen tersebut dan 
                                        tanyakan kepada user apa yang ingin diketahui dari dokumen ini.""", files=file_loc)
 
-            # --- Ekstrak metrik dan hasil ---
             metrics = getattr(agent_response.messages[-1], 'metrics', None)
             content = getattr(agent_response, 'content', '')
 
             latency_seconds = time.time() - start_time
             category = self.classify_zero_shot(content) if content else ""
 
-            # --- Simpan respons agent (chatbot) ---
             await self.save_chat_history(
                 room_conversation_id=room_id,
                 sender_id=chatbot_id,
@@ -618,7 +621,6 @@ class ChatService:
                 role="chatbot"
             )
 
-            # --- Kirim ke User & Admins ---
             await websocket.send_json({
                 "success": True,
                 "from": "chatbot",
@@ -646,7 +648,7 @@ class ChatService:
     async def handle_user_audio(self, websocket: WebSocket, data: dict, user_id: uuid.UUID, room_id: uuid.UUID, start_time: float):
 
         file_name = data.get("file_name")
-        mime_type = data.get("mime_type")  # e.g., "audio/webm" or "audio/wav"
+        mime_type = data.get("mime_type") 
         duration = data.get("duration")
         file_data_base64 = data.get("file_data")
 
@@ -658,7 +660,6 @@ class ChatService:
 
         file_bytes = base64.b64decode(file_data_base64)
 
-        # Save original file
         upload_dir = "./resources/uploaded_files"
         os.makedirs(upload_dir, exist_ok=True)
         unique_filename = f"{uuid.uuid4()}_{file_name}"
@@ -670,7 +671,6 @@ class ChatService:
         file_url = f"http://localhost:8001/static/{unique_filename}"
         logger.info(f"Voice note saved to {original_file_path}, URL: {file_url}")
 
-        # Convert to WAV if webm
         try:
             audio_format = self.detect_audio_format(mime_type)
 
@@ -724,28 +724,38 @@ class ChatService:
             
             logger.info("content_translate : " + content_translate)
             
+            if not content_translate:
+                await websocket.send_json({"success": False, "error": "Tidak dapat mengekstrak isi voice note."})
+                return
+            
+            await self.save_chat_history(
+                room_conversation_id=room_id,
+                sender_id=user_id,
+                message="voice note | "+ content_translate,
+                agent_response_category=None,
+                agent_response_latency=None,
+                agent_total_tokens=None,
+                agent_input_tokens=None,
+                agent_output_tokens=None,
+                agent_other_metrics=None,
+                agent_tools_call=None,
+                role="user"
+            )
+            
+            await self._send_message_to_associated_admins(
+                room_id,
+                {"sender_id": str(user_id), "message": "voice note | "+ content_translate, "urlFile":file_url, "role": "user", "room_id": str(room_id)}
+            )
+            
             agent = call_customer_service_agent(str(chatbot_id), str(user_id), str(user_id))
             
             agent_response = agent.run(content_translate)
             
             content = getattr(agent_response, 'content', '')
-            
-            if not content_translate:
-                await websocket.send_json({"success": False, "error": "Tidak dapat mengekstrak isi voice note."})
-                return
-
-            # Simpan history voice note user
-            await self.save_chat_history(
-                room_conversation_id=room_id,
-                sender_id=user_id,
-                message="voice_note | "+content_translate,
-                role="user"
-            )
 
             latency_seconds = time.time() - start_time
             latency = timedelta(seconds=latency_seconds)
 
-            # Simpan response dari agent
             await self.save_chat_history(
                 room_conversation_id=room_id,
                 sender_id=chatbot_id,
@@ -765,7 +775,6 @@ class ChatService:
             logger.exception("Error processing voice note:")
             await websocket.send_json({"success": False, "error": f"Terjadi kesalahan saat memproses voice note: {e}"})
 
-
     def detect_audio_format(self, mime_type: str) -> str:
         """Convert MIME type to agno.Audio format string."""
         if "webm" in mime_type:
@@ -777,12 +786,10 @@ class ChatService:
         else:
             return "wav"
 
-
-
     async def handle_disconnect(self, user_id: uuid.UUID, role: str, room_id: Optional[uuid.UUID]):
         logger.info(f"{role.capitalize()} {user_id} terputus.")
-        if role == "admin":
-             await self.remove_admin_room_association(user_id)
+        
+        await self.mark_offline(user_id, role)
 
         if room_id:
             try:
@@ -803,31 +810,48 @@ class ChatService:
                 await self.db.rollback()
         else:
             logger.info(f"User {user_id} disconnected without an associated room_id.")
+    
+    async def mark_online(self, user_id: uuid.UUID, role: str):
+        key = f"online_{role}s" 
+        await self.redis.sadd(key, str(user_id))
+
+    async def mark_offline(self, user_id: uuid.UUID, role: str):
+        key = f"online_{role}s"
+        await self.redis.srem(key, str(user_id))
+
+    async def is_online(self, user_id: uuid.UUID, role: str) -> bool:
+        key = f"online_{role}s"
+        return await self.redis.sismember(key, str(user_id))
+
+    async def get_all_online(self, role: str) -> List[uuid.UUID]:
+        key = f"online_{role}s"
+        members = await self.redis.smembers(key)
+        return [uuid.UUID(uid.decode()) for uid in members]
 
     async def _send_message_to_associated_admins(self, room_id: uuid.UUID, message_data: Dict[str, Any], exclude_admin_id: Optional[uuid.UUID] = None):
-        """Mengirim pesan baru ke semua admin yang saat ini diasosiasikan dengan room_id ini."""
         logger.debug(f"Sending new message from room {room_id} to associated admins.")
         try:
-            for admin_user_id, associated_room_id in self.admin_room_associations.items():
-                if associated_room_id == room_id:
-                    if exclude_admin_id and admin_user_id == exclude_admin_id:
-                         logger.debug(f"Skipping admin {admin_user_id} as they are the sender.")
-                         continue
+            for admin_user_id in self.active_websockets.keys():
+                if exclude_admin_id and admin_user_id == exclude_admin_id:
+                    continue
 
-                    admin_websocket = await self.get_active_websocket(admin_user_id)
-                    if admin_websocket:
-                        try:
-                            message_data_to_send = message_data.copy()
-                            message_data_to_send["type"] = "room_message" 
-                            await admin_websocket.send_json(message_data_to_send)
-                            logger.debug(f"Sent message from room {room_id} to associated admin {admin_user_id}.")
-                        except Exception as e:
-                            logger.error(f"Gagal mengirim pesan ke admin {admin_user_id} yang diasosiasikan dengan room {room_id}: {e}", exc_info=True)
-                    else:
-                        logger.warning(f"Admin {admin_user_id} diasosiasikan dengan room {room_id}, tetapi websocket tidak aktif.")
+                room_in_redis = await self.redis.get(f"admin_room:{str(admin_user_id)}")
+                if room_in_redis != str(room_id):
+                    continue
+
+                admin_ws = await self.get_active_websocket(admin_user_id)
+                if admin_ws:
+                    try:
+                        message_data_to_send = message_data.copy()
+                        message_data_to_send["type"] = "room_message"
+                        await admin_ws.send_json(message_data_to_send)
+                        logger.debug(f"Sent message from room {room_id} to associated admin {admin_user_id}.")
+                    except Exception as e:
+                        logger.error(f"Gagal mengirim pesan ke admin {admin_user_id} yang diasosiasikan dengan room {room_id}: {e}", exc_info=True)
 
         except Exception as e:
             logger.error(f"Error sending message to associated admins for room {room_id}: {e}", exc_info=True)
+
 
     async def _notify_all_online_admins_of_new_message(self, room_id: uuid.UUID, user_id: uuid.UUID, question: str, answer: str):
         logger.info(f"Attempting to broadcast message notification from {user_id} in room {room_id} to ALL online admins.")
@@ -862,55 +886,59 @@ class ChatService:
             logger.error(f"Error fetching online admins for notification broadcast: {e}", exc_info=True)
 
     async def broadcast_active_rooms(self):
-         logger.info("Attempting to broadcast active rooms to online admins.")
-         try:
-             online_members_count_query = select(
-                 Member.room_conversation_id,
-                 sqlalchemy.func.count().label('online_members_count')
-             ).where(Member.is_online == True).group_by(Member.room_conversation_id).subquery()
+        logger.info("Attempting to broadcast active rooms to online admins.")
+        try:
+           
+            online_members_count_query = select(
+                Member.room_conversation_id,
+                sqlalchemy.func.count().label('online_members_count')
+            ).where(Member.is_online == True).group_by(Member.room_conversation_id).subquery()
 
+            room_data_results = await self.db.execute(
+                select(
+                    RoomConversation.id,
+                    RoomConversation.status,
+                    online_members_count_query.c.online_members_count,
+                    RoomConversation.agent_active 
+                )
+                .outerjoin(online_members_count_query, RoomConversation.id == online_members_count_query.c.room_conversation_id)
+                .where(RoomConversation.status != "closed")
+            )
+            
+            room_data_list = room_data_results.all()
 
-             room_data_results = await self.db.execute(
-                 select(RoomConversation.id, RoomConversation.status, online_members_count_query.c.online_members_count, RoomConversation.agent_active) # <-- Select agent_active juga
-                 .outerjoin(online_members_count_query, RoomConversation.id == online_members_count_query.c.room_conversation_id)
-                 .where(RoomConversation.status != "closed")
-             )
-             
-             room_data_list = room_data_results.all()
+            active_rooms_data = []
+            for room_id, status, online_count, agent_active_status in room_data_list:
+                num_members_online = online_count if online_count is not None else 0
+                active_rooms_data.append({
+                    "room_id": str(room_id),
+                    "status": status,
+                    "online_members": num_members_online,
+                    "agent_active": agent_active_status,
+                })
 
-             active_rooms_data = []
-             for room_id, status, online_count, agent_active_status in room_data_list: 
-                  num_members_online = online_count if online_count is not None else 0
+            online_admin_uuids = await self.get_all_online("admin")
+            logger.debug(f"Found {len(online_admin_uuids)} online admins from Redis for active rooms broadcast.")
 
-                  active_rooms_data.append({
-                     "room_id": str(room_id),
-                     "status": status,
-                     "online_members": num_members_online,
-                     "agent_active": agent_active_status,
-                  })
-
-             online_admins_result = await self.db.execute(
-                 select(Member).where(Member.role == "admin", Member.is_online == True)
-             )
-             online_admins = online_admins_result.scalars().all()
-
-             logger.debug(f"Found {len(online_admins)} online admins for active rooms broadcast.")
+            for admin_user_id in online_admin_uuids:
                 
-             for admin_member in online_admins:
-                 admin_user_id = admin_member.user_id
-                 admin_websocket = await self.get_active_websocket(admin_user_id)
+                admin_websocket = self.active_websockets.get(admin_user_id) 
 
-                 if admin_websocket:
-                     try:
-                         await admin_websocket.send_json({
-                             "type": "active_rooms_update",
-                             "rooms": active_rooms_data
-                         })
-                         logger.debug(f"✅ Berhasil kirim active_rooms_update ke admin {admin_user_id}")
-                     except Exception as e:
-                         logger.error(f"❌ Gagal kirim active_rooms_update ke admin {admin_user_id}: {e}", exc_info=True)
-                 else:
-                     logger.warning(f"WebSocket untuk admin {admin_user_id} ditemukan online di DB, tetapi tidak aktif di state aplikasi.")
+                if admin_websocket:
+                    try:
+                        await admin_websocket.send_json({
+                            "type": "active_rooms_update",
+                            "rooms": active_rooms_data
+                        })
+                        logger.debug(f"✅ Successfully sent active_rooms_update to admin {admin_user_id}")
+                    except Exception as e:
+                        
+                        logger.error(f"❌ Failed to send active_rooms_update to admin {admin_user_id}: {e}", exc_info=True)
+                else:
+                    
+                    logger.warning(f"WebSocket for admin {admin_user_id} found online in Redis, but not active in this application state.")
 
-         except SQLAlchemyError as e:
-             logger.error(f"❌ Error broadcasting active rooms: {e}", exc_info=True)
+        except SQLAlchemyError as e:
+            logger.error(f"❌ Database error during broadcast_active_rooms: {e}", exc_info=True)
+        except Exception as e:
+            logger.error(f"❌ General error during broadcast_active_rooms: {e}", exc_info=True)

@@ -33,8 +33,13 @@ class UserHistoryResponse(BaseModel):
     success: bool
     room_id: UUID
     user_id: UUID
+    total: int 
     history: List[ChatHistoryResponse] 
 
     model_config = {
         "from_attributes": True 
     }
+    
+class PaginatedChatHistoryResponse(BaseModel):
+    total: int
+    data: List[ChatHistoryResponse]

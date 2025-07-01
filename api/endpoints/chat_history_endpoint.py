@@ -8,6 +8,8 @@ from services.chat_history_service import ChatHistoryService, get_chat_history_s
 from middleware.verify_api_key_header import api_key_auth 
 from schemas.chat_history_schema import ChatHistoryResponse, UserHistoryResponse
 from uuid import UUID
+from fastapi.responses import JSONResponse
+from schemas.chat_history_schema import PaginatedChatHistoryResponse
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -16,7 +18,7 @@ router = APIRouter(
     tags=["history"],
 )
 
-@router.get("/history/all", response_model=List[ChatHistoryResponse], dependencies=[Depends(api_key_auth)])
+@router.get("/history/all", response_model=PaginatedChatHistoryResponse, dependencies=[Depends(api_key_auth)])
 async def read_all_chat_history_endpoint(
     chat_history_service: ChatHistoryService = Depends(get_chat_history_service),
     offset: int = Query(0, description="Number of items to skip"), # Default 0
@@ -31,13 +33,10 @@ async def read_all_chat_history_endpoint(
         limit: Jumlah item per halaman.
     """
     try:
+        
         logger.info(f"Received request for all chat history with offset={offset}, limit={limit}.")
         
-        chat_history = chat_history_service.get_all_chat_history(offset=offset, limit=limit)
-
-        logger.info(f"Returning {len(chat_history)} chat entries.")
-        
-        return chat_history
+        return chat_history_service.get_all_chat_history(offset=offset, limit=limit)
 
     except SQLAlchemyError as e:
         logger.error(f"Database error in read_all_chat_history_endpoint: {e}", exc_info=True)
@@ -69,15 +68,16 @@ async def get_user_history_by_user_id_endpoint(
     """
     logger.info(f"Received request for history for user {user_id} with offset={offset}, limit={limit}.")
     try:
-        history = chat_history_service.get_user_chat_history_by_user_id(user_id, offset=offset, limit=limit)
+        result = chat_history_service.get_user_chat_history_by_user_id(user_id, offset=offset, limit=limit)
         
-        logger.info(f"Returning {len(history)} history entries for room {user_id}.")
+        logger.info(f"Returning {len(result)} history entries for room {user_id}.")
 
         return UserHistoryResponse(
             success=True,
             room_id=user_id,
             user_id=user_id,
-            history = [ChatHistoryResponse.model_validate(chat) for chat in history]
+            total=result["total"],
+            history=[ChatHistoryResponse.model_validate(chat) for chat in result["data"]]
 
         )
         
@@ -117,9 +117,16 @@ async def get_user_history_by_room_id_endpoint(
         result = chat_history_service.get_user_chat_history_by_room_id(room_id, offset=offset, limit=limit)
 
         if not result:
-            return []
+            return UserHistoryResponse(
+                success=True,
+                room_id=room_id,
+                user_id=None,
+                total=0,
+                history=[]
+            )
 
         user_id = result["user_id"]
+        total_count = result["total_count"]
         history = result["history"]
         
         logger.info(f"Returning {len(history)} history entries for room {room_id}.")
@@ -128,6 +135,7 @@ async def get_user_history_by_room_id_endpoint(
             success=True,
             room_id=room_id,
             user_id=user_id,
+            total=total_count,
             history=[ChatHistoryResponse.model_validate(chat) for chat in history]
         )
 
