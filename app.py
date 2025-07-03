@@ -13,6 +13,7 @@ from api.endpoints.knowledge_base_endpoint import router as knowledge_base_endpo
 from api.endpoints.prompt_endpoint import router as prompt_endpoint
 from api.endpoints.room_endpoint import router as room_endpoint
 from api.endpoints.customer_interaction_endpoint import router as customer_interaction_endpoint
+from api.endpoints.report_endpoint import router as report_endpoint
 from api.websocket.chat_ws import router as chat_ws
 
 from fastapi.staticfiles import StaticFiles 
@@ -76,6 +77,7 @@ app.include_router(room_endpoint)
 app.include_router(dashboard_endpoint)
 app.include_router(prompt_endpoint)
 app.include_router(customer_interaction_endpoint)
+app.include_router(report_endpoint)
 
 #Daftar route websocket
 app.include_router(chat_ws)

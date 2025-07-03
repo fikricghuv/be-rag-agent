@@ -15,7 +15,6 @@ from sqlalchemy import TEXT, Text
 from dateutil.relativedelta import relativedelta, SU
 from schemas.chat_history_schema import PaginatedChatHistoryResponse, ChatHistoryResponse
 
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -515,38 +514,49 @@ class ChatHistoryService:
         except SQLAlchemyError as e:
             logger.error(f"SQLAlchemy Error getting monthly total conversations: {e}", exc_info=True)
             raise e
-        
+
     def get_daily_average_latency_seconds(self):
         """
-        Mengambil latensi rata-rata harian dalam detik (float).
+        Mengambil latensi rata-rata harian selama 7 hari terakhir dalam detik (float).
         Mengembalikan dictionary dengan format: {'YYYY-MM-DD': avg_latency_seconds}
         Jika hari tidak ada data, akan diisi dengan 0.0.
         """
         try:
-            logger.info("Getting daily average latency in seconds (float).")
-            
+            logger.info("Getting daily average latency in seconds for the last 7 days.")
+
+            end_date = datetime.now().date()
+            start_date = end_date - timedelta(days=6)
+
+            # Ambil raw data dari DB
             daily_latency_raw = self.db.query(
                 func.to_char(Chat.created_at, 'YYYY-MM-DD').label('day'),
                 func.avg(func.extract('epoch', Chat.agent_response_latency)).label('avg_latency_seconds')
-            ).filter(Chat.agent_response_latency.isnot(None)).group_by('day').order_by('day').all()
+            ).filter(
+                Chat.agent_response_latency.isnot(None),
+                Chat.created_at >= start_date,
+                Chat.created_at <= end_date
+            ).group_by('day').order_by('day').all()
 
-            current_date = datetime.now().date()
-            daily_data = defaultdict(float) 
+            # Inisialisasi dict 7 hari terakhir dengan 0.0
+            daily_data = defaultdict(float)
+            for i in range(7):
+                day = start_date + timedelta(days=i)
+                day_str = day.strftime('%Y-%m-%d')
+                daily_data[day_str] = 0.0
 
-            for i in range(1, current_date.day + 1):
-                day_str = f"{current_date.year}-{current_date.month:02d}-{i:02d}"
-                daily_data[day_str] = 0.0 
-
+            # Isi data yang tersedia dari query
             for day, avg_latency_seconds in daily_latency_raw:
                 if day in daily_data:
-                    daily_data[day] = round(avg_latency_seconds, 2) 
+                    daily_data[day] = round(avg_latency_seconds, 2)
 
             sorted_result = dict(sorted(daily_data.items()))
-            logger.info(f"Daily average latency (seconds): {sorted_result}")
+            logger.info(f"7-day average latency (seconds): {sorted_result}")
             return sorted_result
+
         except SQLAlchemyError as e:
             logger.error(f"SQLAlchemy Error getting daily average latency in seconds: {e}", exc_info=True)
             raise e
+
 
     def get_monthly_average_latency_seconds(self):
         """

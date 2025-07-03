@@ -23,13 +23,8 @@ import os
 from agno.media import Audio
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
-
-CLASSIFICATION_CATEGORIES = [
-    "Sapa", "Informasi Umum", "Produk Asuransi Oto", "Produk Asuransi Asri",
-    "Produk Asuransi Sepeda", "Produk Asuransi Apartemen", "Produk Asuransi Ruko",
-    "Produk Asuransi Diri", "Claim", "Payment", "Policy", "Complaint", "Others"
-]
-
+from agents.classification_agent.classification_message_agent import classify_chat_agent
+from agents.audio_handler_agent.audio_agent import speech_to_text
 
 client = OpenAI()
 
@@ -41,23 +36,9 @@ class ChatService:
         self.db: AsyncSession = db
         self.active_websockets = active_websockets
         self.redis = redis
+        self.classify_chat_agent = classify_chat_agent
+        self.speech_to_text = speech_to_text
         
-    def classify_zero_shot(self, response_text: str) -> str:
-        prompt = f"""
-        Kategorikan pesan ini ke salah satu kategori berikut:
-        {', '.join(CLASSIFICATION_CATEGORIES)}
-
-        Pesan: "{response_text}"
-
-        Jawab hanya dengan 1 nama kategorinya saja. Pilih yang paling sesuai dengan konteks pesan di atas.
-        """
-        completion = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return completion.choices[0].message.content.strip().lower()
-
-
     async def get_active_websocket(self, user_id: uuid.UUID) -> Optional[WebSocket]:
         logger.debug(f"🔍 Mencari websocket aktif untuk user_id: {user_id}")
         return self.active_websockets.get(user_id)
@@ -380,7 +361,7 @@ class ChatService:
             if not content:
                 category = ""
             else:
-                category = self.classify_zero_shot(content)
+                category = self.classify_chat_agent(content)
 
             latency_seconds = time.time() - start_time
             latency=timedelta(seconds=latency_seconds)
@@ -423,7 +404,6 @@ class ChatService:
             logger.exception(f"Error handling user message (agent active path) for user {user_id} in room {room_id}:")
             
             await websocket.send_json({"success": False, "error": f"Terjadi kesalahan saat memproses pesan: {e}"})
-
 
     async def handle_chatbot_message(self, websocket: WebSocket, data: dict, sender_id: uuid.UUID, room_id: uuid.UUID):
         
@@ -605,7 +585,7 @@ class ChatService:
             content = getattr(agent_response, 'content', '')
 
             latency_seconds = time.time() - start_time
-            category = self.classify_zero_shot(content) if content else ""
+            category = self.classify_chat_agent(content) if content else ""
 
             await self.save_chat_history(
                 room_conversation_id=room_id,
@@ -711,17 +691,9 @@ class ChatService:
                 await websocket.send_json({"success": False, "error": "Chatbot tidak ditemukan di room ini."})
                 return
 
-            
-            agentTranscriber = Agent(
-                model=OpenAIChat(id="gpt-4o-audio-preview", modalities=["text"]),
-                markdown=True,
-            )
-            transcribe = agentTranscriber.run(
-                "translate ini kedalam bahasa indonesia, untuk diolah customer service agent.", audio=[Audio(content=file_bytes, format="wav")]
-            )
+            transcribe = speech_to_text(file_bytes)
 
             content_translate = getattr(transcribe, 'content', '')
-            
             logger.info("content_translate : " + content_translate)
             
             if not content_translate:
@@ -762,7 +734,7 @@ class ChatService:
                 message=content,
                 role="chatbot",
                 agent_response_latency=latency,
-                agent_response_category=self.classify_zero_shot(content),
+                agent_response_category=self.classify_chat_agent(content),
                 agent_input_tokens=getattr(getattr(agent_response.messages[-1], 'metrics', None), 'input_tokens', None),
                 agent_output_tokens=getattr(getattr(agent_response.messages[-1], 'metrics', None), 'output_tokens', None),
                 agent_total_tokens=getattr(getattr(agent_response.messages[-1], 'metrics', None), 'total_tokens', None),
