@@ -99,3 +99,4 @@ wsproto==1.2.0
 redis[async]
 pandas
 openpyxl
+apscheduler

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from services.knowledge_base_service import KnowledgeBaseService, get_knowledge_base_service
 from middleware.verify_api_key_header import api_key_auth 
 from schemas.knowledge_base_config_schema import KnowledgeBaseConfig
+from middleware.token_dependency import verify_access_token
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -15,6 +16,7 @@ router = APIRouter(
 @router.get("/knowledge-base/config", response_model=KnowledgeBaseConfig, dependencies=[Depends(api_key_auth)])
 async def get_knowledge_base_config_endpoint(
     knowledge_base_service: KnowledgeBaseService = Depends(get_knowledge_base_service),
+    access_token: str = Depends(verify_access_token) 
 ):
     """
     Endpoint untuk mendapatkan konfigurasi knowledge base dari database.
@@ -40,7 +42,8 @@ async def get_knowledge_base_config_endpoint(
 @router.put("/knowledge-base/update-config", response_model=KnowledgeBaseConfig, dependencies=[Depends(api_key_auth)]) 
 async def update_knowledge_base_config_endpoint(
     new_config: KnowledgeBaseConfig,
-    knowledge_base_service: KnowledgeBaseService = Depends(get_knowledge_base_service)
+    knowledge_base_service: KnowledgeBaseService = Depends(get_knowledge_base_service),
+    access_token: str = Depends(verify_access_token) 
 ):
     """
     Endpoint untuk memperbarui konfigurasi knowledge base di database.

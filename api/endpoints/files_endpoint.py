@@ -7,6 +7,7 @@ from services.file_service import FileService, get_file_service
 from middleware.verify_api_key_header import api_key_auth
 from schemas.file_response_schema import FileInfo, FileDeletedResponse, UploadSuccessResponse, EmbeddingProcessResponse
 from typing import List
+from middleware.token_dependency import verify_access_token
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -18,6 +19,7 @@ router = APIRouter(
 @router.get("/files", response_model=List[FileInfo], dependencies=[Depends(api_key_auth)])
 async def get_all_files_endpoint(
      file_service: FileService = Depends(get_file_service),
+     access_token: str = Depends(verify_access_token) 
 ):
     """
     Endpoint untuk mengambil seluruh file yang telah diunggah.
@@ -46,7 +48,7 @@ async def get_all_files_endpoint(
 async def delete_file_endpoint(
     uuid_file: uuid.UUID = Path(..., description="UUID of the file to delete"),
     file_service: FileService = Depends(get_file_service),
-
+    access_token: str = Depends(verify_access_token) 
 ):
     """
     Endpoint untuk menghapus file dari database berdasarkan UUID.
@@ -76,6 +78,7 @@ async def delete_file_endpoint(
 async def upload_file_endpoint(
     file: UploadFile = File(..., description="File to upload"), 
     file_service: FileService = Depends(get_file_service), 
+    access_token: str = Depends(verify_access_token) 
 ):
     """
     Endpoint untuk mengunggah file ke server dan menyimpannya di database.
@@ -105,6 +108,7 @@ async def upload_file_endpoint(
 @router.post("/files/embedding-file", response_model=EmbeddingProcessResponse, dependencies=[Depends(api_key_auth)])
 async def process_embedding_endpoint(
     file_service: FileService = Depends(get_file_service), 
+    access_token: str = Depends(verify_access_token) 
 ):
     """
     Endpoint untuk memproses embedding dari file berdasarkan UUID.

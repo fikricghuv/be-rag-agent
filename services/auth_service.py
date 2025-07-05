@@ -9,7 +9,7 @@ from core.settings import ALGORITHM, SECRET_KEY_REFRESH_ADMIN
 from datetime import datetime, timedelta
 from jose import jwt
 from database.models.user_model import User
-from utils.security_utils import hash_password
+from utils.security_utils import hash_password, verify_password
 from schemas.user_schema import CreateUserRequest, UserResponse
 
 class AuthService:
@@ -43,17 +43,30 @@ class AuthService:
         }
         encoded_jwt = jwt.encode(to_encode, SECRET_KEY_REFRESH_ADMIN, algorithm=ALGORITHM)
         return encoded_jwt
+    
+    def generate_refresh_token(self, user_id: str, expires_delta: timedelta = timedelta(days=7)) -> str:
+        to_encode = {
+            "sub": str(user_id),
+            "exp": datetime.utcnow() + expires_delta
+        }
+        refresh_token = jwt.encode(to_encode, SECRET_KEY_REFRESH_ADMIN, algorithm=ALGORITHM)
+        return refresh_token
 
-    def login_user(self, email: str, password: str) -> str:
+
+    def login_user(self, email: str, password: str) -> dict:
         user = self.db.query(User).filter(User.email == email).first()
         if not user:
             raise HTTPException(status_code=401, detail="Invalid email")
 
-        # if not verify_password(password, user.hashed_password):
-        #     raise HTTPException(status_code=401, detail="Invalid password")
+        if not verify_password(password, user.password):
+            raise HTTPException(status_code=401, detail="Invalid password")
 
-        token = self.generate_access_token(user_id=user.id)
-        return token
+        token_data = {
+            "access_token": self.generate_access_token(user.id),
+            "refresh_token": self.generate_refresh_token(user.id)
+        }
+        return token_data
+
 
     def create_user(self, request: CreateUserRequest) -> UserResponse:
         existing_user = self.db.query(User).filter(User.email == request.email).first()

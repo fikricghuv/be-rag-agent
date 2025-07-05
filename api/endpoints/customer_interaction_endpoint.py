@@ -7,7 +7,7 @@ from services.customer_interaction_service import CustomerInteractionService, ge
 from middleware.verify_api_key_header import api_key_auth
 from schemas.customer_interaction_schema import PaginatedCustomerInteractionResponse, CustomerInteractionResponse
 from fastapi.encoders import jsonable_encoder
-
+from middleware.token_dependency import verify_access_token
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -23,6 +23,7 @@ async def get_all_customer_interactions_endpoint(
     customer_interaction: CustomerInteractionService = Depends(get_customer_interaction_service),
     offset: int = Query(0),
     limit: int = Query(100, le=200),
+    access_token: str = Depends(verify_access_token) 
 ):
     try:
         result = customer_interaction.get_all_customer_interactions(offset, limit)

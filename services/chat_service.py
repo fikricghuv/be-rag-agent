@@ -798,7 +798,8 @@ class ChatService:
     async def get_all_online(self, role: str) -> List[uuid.UUID]:
         key = f"online_{role}s"
         members = await self.redis.smembers(key)
-        return [uuid.UUID(uid.decode()) for uid in members]
+        return [uuid.UUID(uid) for uid in members]
+
 
     async def _send_message_to_associated_admins(self, room_id: uuid.UUID, message_data: Dict[str, Any], exclude_admin_id: Optional[uuid.UUID] = None):
         logger.debug(f"Sending new message from room {room_id} to associated admins.")

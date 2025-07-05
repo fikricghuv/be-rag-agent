@@ -7,6 +7,7 @@ from services.chat_history_service import ChatHistoryService, get_chat_history_s
 from middleware.verify_api_key_header import api_key_auth
 from services.user_service import UserService, get_user_service
 from schemas.customer_feedback_response_schema import CategoryFrequencyResponse
+from middleware.token_dependency import verify_access_token
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -18,6 +19,7 @@ router = APIRouter(
 @router.get("/stats/total-conversations", response_model=int, dependencies=[Depends(api_key_auth)])
 async def get_total_conversations_endpoint(
     chat_history_service: ChatHistoryService = Depends(get_chat_history_service),
+    access_token: str = Depends(verify_access_token) 
 ):
     """
     Endpoint untuk mendapatkan total jumlah percakapan (untuk dashboard).
@@ -42,6 +44,7 @@ async def get_total_conversations_endpoint(
 @router.get("/stats/total-users", response_model=int, dependencies=[Depends(api_key_auth)])
 async def get_total_users_endpoint(
     user_service: UserService = Depends(get_user_service),
+    access_token: str = Depends(verify_access_token) 
 ):
     """
     Endpoint untuk mendapatkan total jumlah user unik (untuk dashboard).
@@ -65,7 +68,8 @@ async def get_total_users_endpoint(
 
 @router.get("/stats/total-tokens", response_model=float, dependencies=[Depends(api_key_auth)])
 async def get_total_tokens_endpoint(
-    chat_history_service: ChatHistoryService = Depends(get_chat_history_service)
+    chat_history_service: ChatHistoryService = Depends(get_chat_history_service),
+    access_token: str = Depends(verify_access_token) 
 ):
     """
     Endpoint untuk mendapatkan total jumlah token yang digunakan di seluruh riwayat chat.
@@ -90,6 +94,7 @@ async def get_total_tokens_endpoint(
 @router.get("/stats/categories-frequency", response_model=List[CategoryFrequencyResponse], dependencies=[Depends(api_key_auth)])
 async def get_categories_frequency_endpoint(
     chat_history_service: ChatHistoryService = Depends(get_chat_history_service),
+    access_token: str = Depends(verify_access_token) 
 ):
     """
     Endpoint untuk mendapatkan frekuensi kategori respons agent (untuk dashboard).
@@ -114,6 +119,7 @@ async def get_categories_frequency_endpoint(
 @router.get("/stats/monthly-new-users", response_model=Dict[str, int], dependencies=[Depends(api_key_auth)])
 async def get_monthly_new_users_endpoint(
     user_service: UserService = Depends(get_user_service),
+    access_token: str = Depends(verify_access_token) 
 ):
     """
     Endpoint untuk mendapatkan total penambahan user baru setiap bulan (untuk dashboard).
@@ -134,6 +140,7 @@ async def get_monthly_new_users_endpoint(
 @router.get("/stats/monthly-conversations", response_model=Dict[str, int], dependencies=[Depends(api_key_auth)])
 async def get_monthly_conversations_endpoint(
     chat_history_service: ChatHistoryService = Depends(get_chat_history_service),
+    access_token: str = Depends(verify_access_token) 
 ):
     """
     Endpoint untuk mendapatkan total percakapan bulanan (untuk dashboard).
@@ -155,6 +162,7 @@ async def get_monthly_conversations_endpoint(
 @router.get("/stats/daily-avg-latency", response_model=Dict[str, float], dependencies=[Depends(api_key_auth)])
 async def get_daily_average_latency_endpoint(
     chat_history_service: ChatHistoryService = Depends(get_chat_history_service),
+    access_token: str = Depends(verify_access_token) 
 ):
     """
     Endpoint untuk mendapatkan latensi rata-rata harian dalam milidetik.
@@ -175,6 +183,7 @@ async def get_daily_average_latency_endpoint(
 @router.get("/stats/monthly-avg-latency", response_model=Dict[str, float], dependencies=[Depends(api_key_auth)])
 async def get_monthly_average_latency_endpoint(
     chat_history_service: ChatHistoryService = Depends(get_chat_history_service),
+    access_token: str = Depends(verify_access_token) 
 ):
     """
     Endpoint untuk mendapatkan latensi rata-rata bulanan dalam milidetik.
@@ -195,6 +204,7 @@ async def get_monthly_average_latency_endpoint(
 @router.get("/stats/monthly-escalations", response_model=Dict[str, int], dependencies=[Depends(api_key_auth)])
 async def get_monthly_escalation_count_endpoint(
     chat_history_service: ChatHistoryService = Depends(get_chat_history_service),
+    access_token: str = Depends(verify_access_token) 
 ):
     """
     Endpoint untuk mendapatkan total eskalasi bulanan.
@@ -216,7 +226,8 @@ async def get_monthly_escalation_count_endpoint(
         
 @router.get("/stats/monthly-tokens-usage", response_model=Dict[str, float], dependencies=[Depends(api_key_auth)])
 async def get_monthly_tokens_usage_endpoint(
-    chat_history_service: ChatHistoryService = Depends(get_chat_history_service)
+    chat_history_service: ChatHistoryService = Depends(get_chat_history_service),
+    access_token: str = Depends(verify_access_token) 
 ):
     """
     Endpoint untuk mendapatkan total penggunaan token per bulan selama tahun berjalan (untuk dashboard).
@@ -239,7 +250,8 @@ async def get_monthly_tokens_usage_endpoint(
     
 @router.get("/stats/conversations/weekly", response_model=Dict[str, int], dependencies=[Depends(api_key_auth)])
 async def get_weekly_conversations_api(
-    chat_history_service: ChatHistoryService = Depends(get_chat_history_service)
+    chat_history_service: ChatHistoryService = Depends(get_chat_history_service),
+    access_token: str = Depends(verify_access_token) 
 ):
     """
     Mengambil total percakapan unik untuk 12 minggu terakhir.
@@ -259,7 +271,8 @@ async def get_weekly_conversations_api(
 
 @router.get("/stats/conversations/monthly", response_model=Dict[str, int], dependencies=[Depends(api_key_auth)])
 async def get_monthly_conversations_api(
-    chat_history_service: ChatHistoryService = Depends(get_chat_history_service)
+    chat_history_service: ChatHistoryService = Depends(get_chat_history_service),
+    access_token: str = Depends(verify_access_token) 
 ):
     """
     Mengambil total percakapan unik untuk 12 bulan terakhir.
@@ -279,7 +292,8 @@ async def get_monthly_conversations_api(
 
 @router.get("/stats/conversations/yearly", response_model=Dict[str, int], dependencies=[Depends(api_key_auth)])
 async def get_yearly_conversations_api(
-    chat_history_service: ChatHistoryService = Depends(get_chat_history_service)
+    chat_history_service: ChatHistoryService = Depends(get_chat_history_service),
+    access_token: str = Depends(verify_access_token) 
 ):
     """
     Mengambil total percakapan unik untuk 6 tahun terakhir.
@@ -299,7 +313,8 @@ async def get_yearly_conversations_api(
 
 @router.get("/stats/escalations/weekly", response_model=Dict[str, int], dependencies=[Depends(api_key_auth)])
 async def get_weekly_escalations_api(
-    chat_history_service: ChatHistoryService = Depends(get_chat_history_service)
+    chat_history_service: ChatHistoryService = Depends(get_chat_history_service),
+    access_token: str = Depends(verify_access_token) 
 ):
     """
     Mengambil total eskalasi unik untuk 12 minggu terakhir.
@@ -320,7 +335,8 @@ async def get_weekly_escalations_api(
 
 @router.get("/stats/escalations/monthly", response_model=Dict[str, int], dependencies=[Depends(api_key_auth)])
 async def get_monthly_escalations_api(
-    chat_history_service: ChatHistoryService = Depends(get_chat_history_service)
+    chat_history_service: ChatHistoryService = Depends(get_chat_history_service),
+    access_token: str = Depends(verify_access_token) 
 ):
     """
     Mengambil total eskalasi unik untuk 12 bulan terakhir.
@@ -341,7 +357,8 @@ async def get_monthly_escalations_api(
 
 @router.get("/stats/escalations/yearly", response_model=Dict[str, int], dependencies=[Depends(api_key_auth)])
 async def get_yearly_escalations_api(
-    chat_history_service: ChatHistoryService = Depends(get_chat_history_service)
+    chat_history_service: ChatHistoryService = Depends(get_chat_history_service),
+    access_token: str = Depends(verify_access_token) 
 ):
     """
     Mengambil total eskalasi unik untuk 6 tahun terakhir.

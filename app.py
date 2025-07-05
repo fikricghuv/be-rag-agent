@@ -14,8 +14,10 @@ from api.endpoints.prompt_endpoint import router as prompt_endpoint
 from api.endpoints.room_endpoint import router as room_endpoint
 from api.endpoints.customer_interaction_endpoint import router as customer_interaction_endpoint
 from api.endpoints.report_endpoint import router as report_endpoint
+from api.endpoints.user_endpoint import router as user_endpoint
+from api.endpoints.customer_profile_endpoint import router as customer_profile
 from api.websocket.chat_ws import router as chat_ws
-
+from api.jobs.scheduler import start_scheduler
 from fastapi.staticfiles import StaticFiles 
 
 app = FastAPI()
@@ -78,7 +80,8 @@ app.include_router(dashboard_endpoint)
 app.include_router(prompt_endpoint)
 app.include_router(customer_interaction_endpoint)
 app.include_router(report_endpoint)
-
+app.include_router(user_endpoint)
+app.include_router(customer_profile)
 #Daftar route websocket
 app.include_router(chat_ws)
 
@@ -96,3 +99,7 @@ app.mount("/static", StaticFiles(directory=static_path), name="static_files")
 @limiter.limit("10/minute")  
 async def read_root(request: Request): 
     return {"message": "Welcome to the Service Monitoring TalkVera!"}
+
+@app.on_event("startup")
+def startup_event():
+    start_scheduler()

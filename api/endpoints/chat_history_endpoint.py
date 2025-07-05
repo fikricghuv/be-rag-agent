@@ -10,6 +10,7 @@ from schemas.chat_history_schema import ChatHistoryResponse, UserHistoryResponse
 from uuid import UUID
 from fastapi.responses import JSONResponse
 from schemas.chat_history_schema import PaginatedChatHistoryResponse
+from middleware.token_dependency import verify_access_token
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -22,7 +23,8 @@ router = APIRouter(
 async def read_all_chat_history_endpoint(
     chat_history_service: ChatHistoryService = Depends(get_chat_history_service),
     offset: int = Query(0, description="Number of items to skip"), # Default 0
-    limit: int = Query(100, description="Number of items to return per page", le=200), # Default 100, maks 200
+    limit: int = Query(100, description="Number of items to return per page", le=200),
+    access_token: str = Depends(verify_access_token) 
 ):
     """
     Endpoint untuk mendapatkan semua riwayat chat dengan pagination (untuk monitoring).
@@ -56,6 +58,7 @@ async def get_user_history_by_user_id_endpoint(
     chat_history_service: ChatHistoryService = Depends(get_chat_history_service),
     offset: int = Query(0, description="Number of items to skip"), 
     limit: int = Query(100, description="Number of items to return per page", le=200), 
+    access_token: str = Depends(verify_access_token) 
 ):
     """
     Endpoint untuk mendapatkan riwayat chat untuk user spesifik dengan pagination.
@@ -101,7 +104,8 @@ async def get_user_history_by_room_id_endpoint(
     room_id: UUID = Path(..., description="UUID of the user"), # Menggunakan UUID dan Path
     chat_history_service: ChatHistoryService = Depends(get_chat_history_service),
     offset: int = Query(0, description="Number of items to skip"), # Default 0
-    limit: int = Query(100, description="Number of items to return per page", le=200), # Default 100, maks 200
+    limit: int = Query(100, description="Number of items to return per page", le=200),
+    access_token: str = Depends(verify_access_token) 
 ):
     """
     Endpoint untuk mendapatkan riwayat chat untuk user spesifik dengan pagination.

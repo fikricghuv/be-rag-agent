@@ -6,6 +6,7 @@ from typing import List
 from schemas.customer_feedback_response_schema import CustomerFeedbackResponse
 from services.customer_feedback_service import CustomerFeedbackService, get_customer_feedback_service 
 from middleware.verify_api_key_header import api_key_auth
+from middleware.token_dependency import verify_access_token
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -20,7 +21,8 @@ router = APIRouter(
 async def get_feedbacks_endpoint(
     customer_feedback_service: CustomerFeedbackService = Depends(get_customer_feedback_service),
     offset: int = Query(0, description="Number of items to skip"), 
-    limit: int = Query(100, description="Number of items to return per page", le=200), 
+    limit: int = Query(100, description="Number of items to return per page", le=200),
+    access_token: str = Depends(verify_access_token)  
 ):
     """
     Endpoint untuk mendapatkan semua feedback customer dengan pagination.
@@ -47,7 +49,8 @@ async def get_feedbacks_endpoint(
 
 @router.get("/feedbacks/total", response_model=int, dependencies=[Depends(api_key_auth)])
 async def get_total_feedbacks_endpoint(
-    customer_feedback_service: CustomerFeedbackService = Depends(get_customer_feedback_service)
+    customer_feedback_service: CustomerFeedbackService = Depends(get_customer_feedback_service),
+    access_token: str = Depends(verify_access_token)
 ):
     """
     Endpoint untuk mendapatkan total jumlah feedback customer.

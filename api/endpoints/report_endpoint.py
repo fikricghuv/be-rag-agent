@@ -9,6 +9,7 @@ from schemas.chat_history_schema import ChatHistoryResponse, UserHistoryResponse
 from uuid import UUID
 from fastapi.responses import JSONResponse
 from services.report_service import ReportService, get_report_service
+from middleware.token_dependency import verify_access_token
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -22,7 +23,8 @@ async def read_all_chat_history_endpoint(
     report_type: str = Query(..., description="Jenis report, contoh: CUSTOMER_FEEDBACK"),
     start_date: str = Query(..., description="Tanggal awal format YYYY-MM-DD"),
     end_date: str = Query(..., description="Tanggal akhir format YYYY-MM-DD"),
-    report_service: ReportService = Depends(get_report_service)
+    report_service: ReportService = Depends(get_report_service),
+    access_token: str = Depends(verify_access_token) 
 ):
     """
     Menghasilkan file CSV dari report_type tertentu dalam rentang tanggal.

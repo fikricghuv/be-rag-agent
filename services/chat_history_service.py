@@ -419,10 +419,12 @@ class ChatHistoryService:
             # Ambil data dengan offset dan limit
             history = self.db.query(Chat)\
                 .filter(Chat.room_conversation_id == room_id)\
-                .order_by(Chat.created_at)\
+                .order_by(Chat.created_at.desc())\
                 .offset(offset)\
                 .limit(limit)\
                 .all()
+            
+            history.reverse()
 
             logger.info(f"Successfully fetched {len(history)} of {total_count} chat entries for room {room_id}.")
 

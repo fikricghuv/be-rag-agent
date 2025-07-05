@@ -4,6 +4,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import declarative_base, sessionmaker
 
+Base = declarative_base() 
+
 async_engine = create_async_engine(URL_DB_POSTGRES, echo=True) 
 
 AsyncSessionLocal = sessionmaker(
@@ -12,8 +14,6 @@ AsyncSessionLocal = sessionmaker(
     bind=async_engine,
     class_=AsyncSession
 )
-
-Base = declarative_base() 
 
 async def get_db():
     """Async Dependency for database session"""
@@ -25,8 +25,8 @@ async def get_db():
 
 async def init_db():
     async with async_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
         
-        pass 
     
 def config_db():
 

@@ -3,14 +3,16 @@ import uuid
 from datetime import datetime
 
 class RoomConversationResponse(BaseModel):
-    """
-    Pydantic model for RoomConversation response.
-    """
-    id: uuid.UUID # Sesuaikan tipe data Pydantic dengan tipe data SQLAlchemy
-    name: str | None = None # Gunakan Optional[str] atau str | None untuk kolom nullable
+    id: uuid.UUID
+    name: str | None = None 
+    description: str | None = None
     status: str
     created_at: datetime
+    updated_at: datetime | None = None
+    agent_active: bool
+
+    lastMessage: str | None = None
+    lastTimeMessage: datetime | None = None
 
     class Config:
-        # Mengaktifkan ORM mode agar Pydantic bisa membaca data dari objek SQLAlchemy
         orm_mode = True
