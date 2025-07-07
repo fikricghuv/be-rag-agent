@@ -2,7 +2,7 @@
 import logging # Import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Query 
 from sqlalchemy.exc import SQLAlchemyError 
-from typing import List
+from typing import List, Optional
 from services.room_service import RoomService, get_room_service 
 from middleware.verify_api_key_header import api_key_auth
 from schemas.room_conversation_schema import RoomConversationResponse 
@@ -54,6 +54,7 @@ async def get_active_rooms_endpoint(
     room_service: RoomService = Depends(get_room_service),
     offset: int = Query(0, description="Number of active items to skip"),
     limit: int = Query(100, description="Number of active items to return per page", le=200),
+    search: Optional[str] = Query(None, description="Search keyword for room ID, name, or message"),
     access_token: str = Depends(verify_access_token) 
 ):
     """
@@ -66,7 +67,7 @@ async def get_active_rooms_endpoint(
     """
     try:
         logger.info(f"Received request for active rooms with offset={offset}, limit={limit}.")
-        active_rooms = room_service.get_active_rooms(offset=offset, limit=limit)
+        active_rooms = room_service.get_active_rooms(offset=offset, limit=limit, search=search)
         logger.info(f"Returning {len(active_rooms)} active room entries.")
         return active_rooms
     except SQLAlchemyError as e:

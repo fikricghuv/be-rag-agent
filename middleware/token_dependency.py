@@ -2,7 +2,7 @@
 from fastapi import Depends, HTTPException, status
 from jose import jwt, JWTError
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from core.settings import SECRET_KEY_REFRESH_ADMIN, ALGORITHM  # gunakan secret untuk access token
+from core.settings import SECRET_KEY_REFRESH_ADMIN, ALGORITHM, SECRET_KEY_ADMIN  # gunakan secret untuk access token
 
 security = HTTPBearer()
 
@@ -10,7 +10,7 @@ def verify_access_token(credentials: HTTPAuthorizationCredentials = Depends(secu
     token = credentials.credentials
 
     try:
-        payload = jwt.decode(token, SECRET_KEY_REFRESH_ADMIN, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, SECRET_KEY_ADMIN, algorithms=[ALGORITHM])
         user_id: str = payload.get("sub")
         if not user_id:
             raise HTTPException(

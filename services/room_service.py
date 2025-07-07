@@ -10,6 +10,7 @@ from core.config_db import config_db
 from database.models.chat_model import Chat
 from database.models.room_conversation_model import RoomConversation
 from schemas.room_conversation_schema import RoomConversationResponse
+from sqlalchemy import or_, String
 
 logging.basicConfig(level=logging.INFO)
 
@@ -85,7 +86,7 @@ class RoomService:
     #         logger.error(f"SQLAlchemy Error fetching active rooms: {e}", exc_info=True)
     #         raise e 
     
-    def get_active_rooms(self, offset: int, limit: int) -> List[RoomConversationResponse]:
+    def get_active_rooms(self, offset: int, limit: int, search: Optional[str] = None) -> List[RoomConversationResponse]:
         try:
             logger.info(f"Fetching active rooms ordered by latest chat...")
 
@@ -125,7 +126,17 @@ class RoomService:
                 .limit(limit)
                 .all()
             )
-
+            
+            if search:
+                search_pattern = f"%{search.lower()}%"
+                results = results.filter(
+                    or_(
+                        func.lower(RoomConversation.id.cast(String)).like(search_pattern),
+                        func.lower(RoomConversation.name).like(search_pattern),
+                        func.lower(latest_message_subquery.c.message).like(search_pattern)
+                    )
+                )
+                
             # Build response
             response_list = []
             for room, last_msg, last_time in results:

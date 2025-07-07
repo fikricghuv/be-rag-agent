@@ -7,13 +7,15 @@ from sqlalchemy.sql import select, func, distinct, desc, exists
 from datetime import datetime, timedelta
 from sqlalchemy.exc import SQLAlchemyError 
 from fastapi import Depends 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from collections import defaultdict
 from database.models import Chat, RoomConversation, Member
 from core.config_db import config_db
 from sqlalchemy import TEXT, Text
 from dateutil.relativedelta import relativedelta, SU
 from schemas.chat_history_schema import PaginatedChatHistoryResponse, ChatHistoryResponse
+from sqlalchemy import or_, func, desc
+from sqlalchemy import cast, String
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -250,44 +252,36 @@ class ChatHistoryService:
             final_yearly_stats[year_key] = raw_data.get(year_key, 0)
 
         return final_yearly_stats
-    
-    def get_all_chat_history(self, offset: int, limit: int) -> PaginatedChatHistoryResponse:
-        """
-        Mengambil data Chat dengan pagination dan total count.
 
-        Args:
-            offset: Jumlah item yang akan dilewati.
-            limit: Jumlah item per halaman.
-
-        Returns:
-            Dict dengan keys: 'total' (jumlah semua chat), dan 'data' (list chat).
-        Raises:
-            SQLAlchemyError: Jika terjadi kesalahan saat berinteraksi dengan database.
-        """
+    def get_all_chat_history(self, offset: int, limit: int, search: Optional[str] = None) -> PaginatedChatHistoryResponse:
         try:
-            logger.info(f"Fetching all chat history from database with offset={offset}, limit={limit}, ordered by created_at DESC.")
+            logger.info(f"Fetching chat history. offset={offset}, limit={limit}, search='{search}'")
+            query = self.db.query(Chat)
 
-            # Hitung total data
-            total_count = self.db.query(Chat).count()
+            if search:
+                search_filter = f"%{search.lower()}%"
+                query = query.filter(
+                    or_(
+                        func.lower(Chat.message).like(search_filter),
+                        func.lower(cast(Chat.sender_id, String)).like(search_filter)
+                    )
+                )
 
-            # Ambil data sesuai pagination
-            chat_history = self.db.query(Chat)\
-                .order_by(desc(Chat.created_at))\
-                .offset(offset)\
-                .limit(limit)\
-                .all()
+            total_count = query.count()
 
-            logger.info(f"Successfully fetched {len(chat_history)} chat entries out of {total_count} total.")
+            chat_history = query.order_by(desc(Chat.created_at))\
+                                .offset(offset)\
+                                .limit(limit)\
+                                .all()
 
             return PaginatedChatHistoryResponse(
-            total=total_count,
-            data=[ChatHistoryResponse.from_orm(chat) for chat in chat_history]
-        )
+                total=total_count,
+                data=[ChatHistoryResponse.from_orm(chat) for chat in chat_history]
+            )
         except SQLAlchemyError as e:
-            logger.error(f"SQLAlchemy Error fetching all chat history with pagination: {e}", exc_info=True)
+            logger.error(f"SQLAlchemy error: {e}", exc_info=True)
             raise e
 
-        
     def get_categories_by_frequency(self) -> List[Dict[str, Any]]:
         """
         Mengambil kategori respons agent dan menghitung frekuensinya,

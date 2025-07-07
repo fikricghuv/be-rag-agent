@@ -7,6 +7,7 @@ from schemas.customer_schema import CustomerCreate, CustomerUpdate
 import logging
 from fastapi import Depends
 from core.config_db import config_db
+from sqlalchemy import or_, func
 
 logger = logging.getLogger(__name__)
 
@@ -20,14 +21,15 @@ class CustomerProfileService:
         except SQLAlchemyError as e:
             logger.error(f"Error fetching customer by ID {customer_id}: {e}")
             return None
-
-    def get_all_customers(self, limit: int = 10, offset: int = 0) -> Dict:
+    
+    def get_all_customers(self, limit: int = 10, offset: int = 0, search: Optional[str] = None) -> Dict:
         """
-        Mengambil semua customer dengan pagination support.
+        Mengambil semua customer dengan pagination dan optional pencarian.
 
         Args:
             limit: jumlah maksimal data yang diambil
             offset: posisi awal data
+            search: string pencarian (opsional)
 
         Returns:
             Dictionary berisi:
@@ -36,12 +38,24 @@ class CustomerProfileService:
         """
         try:
             query = self.db.query(Customer)
+
+            if search:
+                search_term = f"%{search.lower()}%"
+                query = query.filter(
+                    or_(
+                        func.lower(Customer.full_name).ilike(search_term),
+                        func.lower(Customer.email).ilike(search_term),
+                        func.lower(Customer.phone_number).ilike(search_term)
+                    )
+                )
+
             total = query.count()
             data = query.offset(offset).limit(limit).all()
             return {
                 "data": data,
                 "total": total
             }
+
         except SQLAlchemyError as e:
             logger.error(f"Failed to fetch customers: {e}", exc_info=True)
             return {

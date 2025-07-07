@@ -5,7 +5,7 @@ from fastapi import HTTPException, Depends
 from database.models.user_ids_model import UserIds, UserRole  # Import model dan enum
 from core.config_db import config_db
 from schemas.user_id_schema import GenerateUserIdRequest, UserIdResponse
-from core.settings import ALGORITHM, SECRET_KEY_REFRESH_ADMIN
+from core.settings import ALGORITHM, SECRET_KEY_REFRESH_ADMIN, SECRET_KEY_ADMIN
 from datetime import datetime, timedelta
 from jose import jwt
 from database.models.user_model import User
@@ -37,21 +37,24 @@ class AuthService:
         """
         Membuat JWT access token berdasarkan user_id.
         """
+        expire_time = datetime.utcnow() + expires_delta
         to_encode = {
             "sub": str(user_id),
-            "exp": datetime.utcnow() + expires_delta
+            "exp": expire_time
         }
-        encoded_jwt = jwt.encode(to_encode, SECRET_KEY_REFRESH_ADMIN, algorithm=ALGORITHM)
-        return encoded_jwt
+        encoded_jwt = jwt.encode(to_encode, SECRET_KEY_ADMIN, algorithm=ALGORITHM)
+        return {
+                    "access_token": encoded_jwt,
+                    "expires_at": int(expire_time.timestamp())
+                }
     
     def generate_refresh_token(self, user_id: str, expires_delta: timedelta = timedelta(days=7)) -> str:
         to_encode = {
             "sub": str(user_id),
             "exp": datetime.utcnow() + expires_delta
         }
-        refresh_token = jwt.encode(to_encode, SECRET_KEY_REFRESH_ADMIN, algorithm=ALGORITHM)
+        refresh_token = jwt.encode(to_encode, SECRET_KEY_ADMIN, algorithm=ALGORITHM)
         return refresh_token
-
 
     def login_user(self, email: str, password: str) -> dict:
         user = self.db.query(User).filter(User.email == email).first()
@@ -61,12 +64,17 @@ class AuthService:
         if not verify_password(password, user.password):
             raise HTTPException(status_code=401, detail="Invalid password")
 
-        token_data = {
-            "access_token": self.generate_access_token(user.id),
-            "refresh_token": self.generate_refresh_token(user.id)
-        }
-        return token_data
+        access_data = self.generate_access_token(user.id)
+        access_token = access_data["access_token"]
+        expires_at = access_data["expires_at"]
 
+        refresh_token = self.generate_refresh_token(user.id)
+
+        return {
+            "access_token": access_token,
+            "expires_at": expires_at,
+            "refresh_token": refresh_token
+    }
 
     def create_user(self, request: CreateUserRequest) -> UserResponse:
         existing_user = self.db.query(User).filter(User.email == request.email).first()

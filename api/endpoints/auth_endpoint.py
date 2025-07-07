@@ -10,8 +10,11 @@ from schemas.user_schema import UserResponse, UserCreate
 from services.user_service import UserService, get_user_service
 import logging
 from jose import jwt 
-from core.settings import SECRET_KEY_REFRESH_ADMIN, ALGORITHM
+from core.settings import SECRET_KEY_REFRESH_ADMIN, ALGORITHM, SECRET_KEY_ADMIN
 from middleware.token_dependency import verify_access_token
+from database.models.user_model import User
+from middleware.get_current_user import get_current_user
+from datetime import datetime
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -42,15 +45,22 @@ async def generate_token_endpoint(
     request: GenerateTokenRequest = Body(...),
     auth_service: AuthService = Depends(get_auth_service)
 ):
-    """
-    Endpoint untuk menghasilkan JWT access token berdasarkan user_id.
-    """
-    
     user_id = request.user_id
-    access_token = auth_service.generate_access_token(user_id=user_id)
+
+    access_data = auth_service.generate_access_token(user_id=user_id)
+    access_token = access_data["access_token"]
+    expires_at = access_data["expires_at"]
+
     refresh_token = auth_service.generate_refresh_token(user_id=user_id)
-    
-    return TokenResponse(access_token=access_token, refresh_token=refresh_token)
+
+    expires_in = expires_at - int(datetime.utcnow().timestamp())
+
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in=expires_in
+    )
+
 
 @router.post("/auth/refresh", response_model=TokenResponse)
 async def refresh_token_endpoint(
@@ -58,22 +68,25 @@ async def refresh_token_endpoint(
     auth_service: AuthService = Depends(get_auth_service)
 ):
     try:
-        payload = jwt.decode(request.refresh_token, SECRET_KEY_REFRESH_ADMIN, algorithms=[ALGORITHM])
+        payload = jwt.decode(request.refresh_token, SECRET_KEY_ADMIN, algorithms=[ALGORITHM])
         user_id = payload.get("sub")
         if user_id is None:
             raise HTTPException(status_code=401, detail="Invalid refresh token")
 
         new_access_token = auth_service.generate_access_token(user_id=user_id)
+        access_token = new_access_token["access_token"]
+        expires_at = new_access_token["expires_at"]
         new_refresh_token = auth_service.generate_refresh_token(user_id=user_id)
+        
         return TokenResponse(
-            access_token=new_access_token,
-            refresh_token=new_refresh_token  
+            access_token=access_token,
+            refresh_token=new_refresh_token,
+            expires_in=expires_at 
         )
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Refresh token expired")
     except jwt.JWTError:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
-
 
 @router.post("/auth/login", response_model=TokenResponse)
 async def login_endpoint(
@@ -81,9 +94,17 @@ async def login_endpoint(
     auth_service: AuthService = Depends(get_auth_service),
 ):
     tokens = auth_service.login_user(email=request.email, password=request.password)
+
+    access_token = tokens["access_token"]
+    refresh_token = tokens["refresh_token"]
+    expires_at = tokens["expires_at"]
+
+    expires_in = expires_at - int(datetime.utcnow().timestamp())
+
     return TokenResponse(
-        access_token=tokens["access_token"],
-        refresh_token=tokens["refresh_token"]
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in=expires_in
     )
 
 @router.post("/auth/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -112,3 +133,7 @@ def create_new_user(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Terjadi kesalahan tak terduga: {str(e)}"
         )
+        
+@router.get("/auth/me", response_model=UserResponse)
+async def get_my_profile(current_user: User = Depends(get_current_user)):
+    return current_user 

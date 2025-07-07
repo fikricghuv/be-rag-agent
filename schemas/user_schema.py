@@ -15,7 +15,7 @@ class UserResponse(BaseModel):
     is_active: bool
     created_at: datetime
     updated_at: datetime
-    role_id: Optional[UUID] = None
+    role: str = None
 
     class Config:
         from_attributes = True

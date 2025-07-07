@@ -20,11 +20,11 @@ def create_access_token(admin_id: str, role: str = "admin", expires_delta: timed
 def create_refresh_token(admin_id: str, expires_delta: timedelta = timedelta(days=7)):
     return _create_token({
         "sub": admin_id, 
-        "type": "refresh"}, SECRET_KEY_REFRESH_ADMIN, expires_delta)
+        "type": "refresh"}, SECRET_KEY_ADMIN, expires_delta)
 
 def decode_refresh_token(token: str) -> str:
     try:
-        payload = jwt.decode(token, SECRET_KEY_REFRESH_ADMIN, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, SECRET_KEY_ADMIN, algorithms=[ALGORITHM])
         admin_id = payload.get("sub")
         token_type = payload.get("type")
 

@@ -2,7 +2,7 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Query 
 from sqlalchemy.exc import SQLAlchemyError
-from typing import List
+from typing import List, Optional
 from schemas.customer_feedback_response_schema import CustomerFeedbackResponse
 from services.customer_feedback_service import CustomerFeedbackService, get_customer_feedback_service 
 from middleware.verify_api_key_header import api_key_auth
@@ -22,30 +22,20 @@ async def get_feedbacks_endpoint(
     customer_feedback_service: CustomerFeedbackService = Depends(get_customer_feedback_service),
     offset: int = Query(0, description="Number of items to skip"), 
     limit: int = Query(100, description="Number of items to return per page", le=200),
+    search: Optional[str] = Query(None, description="Search keyword on feedback"),
     access_token: str = Depends(verify_access_token)  
 ):
-    """
-    Endpoint untuk mendapatkan semua feedback customer dengan pagination.
-    Membutuhkan API Key yang valid di header 'X-API-Key'.
-
-    Args:
-        offset: Jumlah item yang akan dilewati.
-        limit: Jumlah item per halaman.
-    """
     try:
-        logger.info(f"Received request for customer feedbacks with offset={offset}, limit={limit}.")
-        feedbacks = customer_feedback_service.fetch_all_feedbacks(offset=offset, limit=limit)
-
-        logger.info(f"Returning {len(feedbacks)} feedback entries.")
+        logger.info(f"Received request for customer feedbacks with offset={offset}, limit={limit}, search='{search}'")
+        feedbacks = customer_feedback_service.fetch_all_feedbacks(offset=offset, limit=limit, search=search)
         return feedbacks
-
     except SQLAlchemyError as e:
         logger.error(f"Database error in get_feedbacks_endpoint: {e}", exc_info=True)
-        
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve customer feedbacks due to an internal server issue."
         )
+
 
 @router.get("/feedbacks/total", response_model=int, dependencies=[Depends(api_key_auth)])
 async def get_total_feedbacks_endpoint(

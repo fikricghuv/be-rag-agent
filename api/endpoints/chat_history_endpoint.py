@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Path # Import Path
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
-from typing import List
+from typing import List, Optional
 from services.chat_history_service import ChatHistoryService, get_chat_history_service # Menggunakan ChatHistoryService dan dependencynya
 from middleware.verify_api_key_header import api_key_auth 
 from schemas.chat_history_schema import ChatHistoryResponse, UserHistoryResponse
@@ -22,34 +22,20 @@ router = APIRouter(
 @router.get("/history/all", response_model=PaginatedChatHistoryResponse, dependencies=[Depends(api_key_auth)])
 async def read_all_chat_history_endpoint(
     chat_history_service: ChatHistoryService = Depends(get_chat_history_service),
-    offset: int = Query(0, description="Number of items to skip"), # Default 0
-    limit: int = Query(100, description="Number of items to return per page", le=200),
-    access_token: str = Depends(verify_access_token) 
+    offset: int = Query(0),
+    limit: int = Query(100, le=200),
+    search: Optional[str] = Query(None, description="Filter chat by message or sender_id"),
+    access_token: str = Depends(verify_access_token)
 ):
-    """
-    Endpoint untuk mendapatkan semua riwayat chat dengan pagination (untuk monitoring).
-    Membutuhkan API Key yang valid di header 'X-API-Key'.
-
-    Args:
-        offset: Jumlah item yang akan dilewati.
-        limit: Jumlah item per halaman.
-    """
     try:
-        
-        logger.info(f"Received request for all chat history with offset={offset}, limit={limit}.")
-        
-        return chat_history_service.get_all_chat_history(offset=offset, limit=limit)
-
+        logger.info(f"Request for chat history: offset={offset}, limit={limit}, search='{search}'")
+        return chat_history_service.get_all_chat_history(offset=offset, limit=limit, search=search)
     except SQLAlchemyError as e:
-        logger.error(f"Database error in read_all_chat_history_endpoint: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An internal server error occurred while fetching chat history."
-        )
-    
+        logger.error(f"DB error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Database error.")
     except Exception as e:
-        logger.error(f"Unexpected error in read_all_chat_history_endpoint: {e}", exc_info=True)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"An unexpected error occurred: {str(e)}")
+        logger.error(f"Unexpected error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 
 @router.get("/history/{user_id}", response_model=UserHistoryResponse, dependencies=[Depends(api_key_auth)])
@@ -58,7 +44,7 @@ async def get_user_history_by_user_id_endpoint(
     chat_history_service: ChatHistoryService = Depends(get_chat_history_service),
     offset: int = Query(0, description="Number of items to skip"), 
     limit: int = Query(100, description="Number of items to return per page", le=200), 
-    access_token: str = Depends(verify_access_token) 
+    # access_token: str = Depends(verify_access_token) 
 ):
     """
     Endpoint untuk mendapatkan riwayat chat untuk user spesifik dengan pagination.
