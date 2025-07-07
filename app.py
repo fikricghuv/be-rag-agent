@@ -19,6 +19,7 @@ from api.endpoints.customer_profile_endpoint import router as customer_profile
 from api.websocket.chat_ws import router as chat_ws
 from api.jobs.scheduler import start_scheduler
 from fastapi.staticfiles import StaticFiles 
+from exceptions.custom_exceptions import ServiceException
 
 app = FastAPI()
 limiter = Limiter(key_func=get_remote_address)
@@ -103,3 +104,13 @@ async def read_root(request: Request):
 @app.on_event("startup")
 def startup_event():
     start_scheduler()
+    
+@app.exception_handler(ServiceException)
+async def service_exception_handler(request: Request, exc: ServiceException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "detail": exc.message,
+            "code": exc.code
+        }
+    )

@@ -9,6 +9,7 @@ from core.config_db import config_db
 from sqlalchemy import text
 from io import BytesIO
 import pandas as pd
+from exceptions.custom_exceptions import DatabaseException, ServiceException
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -24,7 +25,7 @@ class ReportService:
 
     def report_csv(self, report_type: str, start_date: str, end_date: str) -> StreamingResponse:
         try:
-            logger.info(f"Generating report: {report_type} from {start_date} to {end_date}")
+            logger.info(f"[SERVICE][REPORT] Generating report: {report_type} from {start_date} to {end_date}")
             buffer = io.StringIO()
             writer = csv.writer(buffer)
 
@@ -214,15 +215,19 @@ class ReportService:
                 headers={"Content-Disposition": f"attachment; filename={report_type.lower()}_{start_date}_to_{end_date}.csv"}
             )
 
+        except ServiceException as e:
+                self.db.rollback()
+                raise
+            
         except SQLAlchemyError as e:
-            logger.error(f"Database error in report_csv: {e}", exc_info=True)
             self.db.rollback()
-            raise HTTPException(status_code=500, detail="Database error during report generation.")
+            logger.error(f"[SERVICE][REPORT] DB error: {e}", exc_info=True)
+            raise DatabaseException(code="DB_REPORT_ERROR", message="Database error during report generation.")
         
         except Exception as e:
-            logger.error(f"Unexpected error in report_csv: {e}", exc_info=True)
             self.db.rollback()
-            raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+            logger.error(f"[SERVICE][REPORT] Unexpected error: {e}", exc_info=True)
+            raise ServiceException(code="UNEXPECTED_REPORT", message=f"Unexpected error: {str(e)}")
 
 
 def get_report_service(db: Session = Depends(config_db)):

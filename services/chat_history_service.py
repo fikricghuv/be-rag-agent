@@ -16,6 +16,7 @@ from dateutil.relativedelta import relativedelta, SU
 from schemas.chat_history_schema import PaginatedChatHistoryResponse, ChatHistoryResponse
 from sqlalchemy import or_, func, desc
 from sqlalchemy import cast, String
+from exceptions.custom_exceptions import ServiceException, DatabaseException
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -56,9 +57,11 @@ class ChatHistoryService:
             ).group_by("period").all()
 
             return {row.period: row.total_conversations for row in query_results}
+        
         except SQLAlchemyError as e:
-            logger.error(f"SQLAlchemy Error getting conversation counts by period: {e}", exc_info=True)
-            raise e
+            logger.error(f"[SERVICE][CHAT_HISTORY] SQL error at get_categories_by_frequency: {e}", exc_info=True)
+            raise DatabaseException("CHAT_HISTORY_DB_ERROR", "Failed to fetch category frequency from database.")
+
 
     def get_conversations_by_week(self) -> Dict[str, int]:
         """
