@@ -23,10 +23,9 @@ def save_pdfs_locally(directory="resources/pdf_from_postgres"):
     if os.path.exists(directory):
         if os.listdir(directory): 
             print(f"📁 Folder {directory} tidak kosong. Menghapus isinya...")
-            shutil.rmtree(directory) 
-            os.makedirs(directory) 
-            
-        os.makedirs(directory)
+            shutil.rmtree(directory)
+
+    os.makedirs(directory, exist_ok=True)
 
     all_pdfs = get_all_pdfs_from_db()
 

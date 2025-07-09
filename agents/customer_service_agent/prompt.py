@@ -1,5 +1,43 @@
-def prompt_agent():
-    return """
+from services.prompt_service import PromptService
+from core.config_db import config_db
+from sqlalchemy.orm import Session
+
+def get_customer_service_prompt_fields():
+    db_gen = config_db()
+    db: Session = next(db_gen)
+    try:
+        prompt_service = PromptService(db)
+        prompts = prompt_service.fetch_customer_service_prompt()
+        if not prompts:
+            return "", "", "", ""
+        prompt = prompts[0]
+        return (
+            prompt.name_agent or "Default Agent",
+            prompt.description_agent or "No description.",
+            # prompt.style_communication or "Be concise.",
+            # prompt  # return full prompt if needed
+        )
+    finally:
+        try:
+            db_gen.close()
+        except Exception:
+            pass
+
+
+def prompt_agent() -> str:
+    db_gen = config_db()
+    db: Session = next(db_gen)
+    try:
+        prompt_service = PromptService(db)
+        prompts = prompt_service.fetch_customer_service_prompt()
+        prompt_from_db = prompts[0].style_communication if prompts else ""
+    finally:
+        try:
+            db_gen.close()
+        except Exception:
+            pass 
+
+    return f"""
     Tujuan:
     Memberikan jawaban atas pertanyaan dan keluhan nasabah terkait produk dan layanan asuransi BRI Insurance secara cepat, akurat, dan profesional.
 
@@ -45,10 +83,7 @@ def prompt_agent():
     Langkah 2.5: Kirim juga ringkasan keluhan ke tim internal melalui TelegramTools.
 
     3. Gaya Komunikasi
-    Gunakan bahasa yang:
-    - Ramah, sopan, dan profesional
-    - Ringkas namun informatif
-    - Jawaban selalu dalam format Markdown untuk memudahkan pembacaan
+    {prompt_from_db}
     
     4. Handling File yang Diupload
     Jika user mengupload file, lakukan hal berikut:

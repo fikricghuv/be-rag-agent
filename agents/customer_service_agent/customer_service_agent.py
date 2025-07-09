@@ -8,7 +8,7 @@ from agno.storage.postgres import PostgresStorage
 from agents.models.openai_model import openai_model
 from agents.models.gemini_model import gemini_model
 from core.settings import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, URL_DB_POSTGRES, SESSION_TABLE_NAME, KNOWLEDGE_TABLE_NAME, HOST, PORT, DB_NAME, USER_DB, PASSWORD_DB, SCHEMA_TABLE
-from agents.customer_service_agent.prompt import prompt_agent
+from agents.customer_service_agent.prompt import prompt_agent, get_customer_service_prompt_fields
 from agno.embedder.openai import OpenAIEmbedder
 
 storage = PostgresStorage(table_name=SESSION_TABLE_NAME, db_url=URL_DB_POSTGRES)
@@ -16,7 +16,7 @@ storage.upgrade_schema()
 
 
 knowledge_base = PDFKnowledgeBase(
-    path="products",
+    path="app/resources/pdf_from_postgres",
     vector_db=PgVector(
         embedder=OpenAIEmbedder(),
         table_name=KNOWLEDGE_TABLE_NAME,
@@ -37,8 +37,11 @@ postgres_tools = PostgresTools(
 )
 
 def call_customer_service_agent(agent_id, session_id, user_id) :
-
+    name_agent, description_agent = get_customer_service_prompt_fields()
+    
     agent = Agent(
+        name=name_agent,
+        description=description_agent,
         model=openai_model(temperature=0.3, max_tokens=1000),
         # model=gemini_model(),
         agent_id=agent_id,
@@ -61,6 +64,6 @@ def call_customer_service_agent(agent_id, session_id, user_id) :
 
         markdown=True,
         debug_mode=True,
-        )
+    )
     
     return agent

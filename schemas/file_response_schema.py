@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from uuid import UUID
+from datetime import datetime
 
 class FileInfo(BaseModel):
     """
@@ -7,6 +8,8 @@ class FileInfo(BaseModel):
     """
     uuid_file: UUID
     filename: str
+    uploaded_at: datetime
+    status: str
 
 class FileDeletedResponse(BaseModel):
     """

@@ -11,15 +11,12 @@ from agno.knowledge.json import JSONKnowledgeBase
 
 def knowledge_base (chunk_size, overlap, num_documents):
     pdf_knowledge_base = PDFKnowledgeBase(
-        # path="resources/pdf_from_postgres", 
         path="resources/pdf_from_postgres",
         # Table name: ai.pdf_documents
         vector_db=PgVector(
-            # table_name="pdf_document_ollama_embedder",
-            table_name="pdf_document_embedder_3_small",
+            table_name="vector_documents",
             db_url=URL_DB_POSTGRES,
             search_type=SearchType.hybrid,
-            # search_type=SearchType.vector,
             embedder=OpenAIEmbedder()
         ),
         num_documents=5,
@@ -30,9 +27,8 @@ def knowledge_base (chunk_size, overlap, num_documents):
 def knowledge_base_json ():
     json_knowledge_base = JSONKnowledgeBase(
         path="resources/json_document_insurance",
-        # Table name: ai.pdf_documents
         vector_db=PgVector(
-            table_name="json_document_embedder_3_small",
+            table_name="vector_documents",
             db_url=URL_DB_POSTGRES,
             search_type=SearchType.vector,
             embedder=OpenAIEmbedder(),

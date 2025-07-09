@@ -11,6 +11,7 @@ from agents.tools.knowledge_base_tools import knowledge_base
 from schemas.knowledge_base_config_schema import KnowledgeBaseConfig
 from utils.get_knowledge_base_param_utils import get_knowledge_base_config
 from exceptions.custom_exceptions import DatabaseException, ServiceException
+from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,7 @@ class FileService:
             files = self.db.query(FileModel).all()
             logger.info(f"[SERVICE][FILE] Successfully fetched {len(files)} files.")
             return files
+        
         except SQLAlchemyError as e:
             logger.error(f"[SERVICE][FILE] DB error fetching all files: {e}", exc_info=True)
             raise DatabaseException(code="DB_FETCH_FILES_ERROR", message="Failed to fetch files.")
@@ -46,6 +48,7 @@ class FileService:
                 content_type=file.content_type,
                 content=file_content,
                 size=file.size,
+                status='pending',
             )
 
             self.db.add(new_file)
@@ -73,22 +76,36 @@ class FileService:
                 logger.warning(f"[SERVICE][FILE] File not found: {uuid_file}")
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
 
+            # Ekstrak nama file tanpa ekstensi
+            filename_without_ext = file_to_delete.filename.rsplit('.', 1)[0]
+
+            # Hapus data dari vector_documents dengan name yang sama
+            delete_vector_documents = """
+                DELETE FROM ai.vector_documents
+                WHERE name = :filename_without_ext
+            """
+            self.db.execute(text(delete_vector_documents), {"filename_without_ext": filename_without_ext})
+
+            # Hapus file dari tabel uploaded_files
             self.db.delete(file_to_delete)
+
+            # Commit semua perubahan
             self.db.commit()
-            logger.info(f"[SERVICE][FILE] File deleted: {uuid_file}")
-            return {"message": "File deleted successfully"}
+            logger.info(f"[SERVICE][FILE] File and vector document deleted for: {filename_without_ext}")
+
+            return {"message": "File and associated vectors deleted successfully"}
 
         except HTTPException:
             self.db.rollback()
             raise
         except SQLAlchemyError as e:
             self.db.rollback()
-            logger.error(f"[SERVICE][FILE] DB error deleting file: {e}", exc_info=True)
-            raise DatabaseException(code="DB_DELETE_FILE_ERROR", message="Failed to delete file.")
+            logger.error(f"[SERVICE][FILE] DB error deleting file/vector: {e}", exc_info=True)
+            raise DatabaseException(code="DB_DELETE_FILE_VECTOR_ERROR", message="Failed to delete file and vector document.")
         except Exception as e:
             self.db.rollback()
-            logger.error(f"[SERVICE][FILE] Unexpected error deleting file: {e}", exc_info=True)
-            raise ServiceException(code="UNEXPECTED_DELETE_FILE_ERROR", message="Unexpected error occurred while deleting file.")
+            logger.error(f"[SERVICE][FILE] Unexpected error deleting file/vector: {e}", exc_info=True)
+            raise ServiceException(code="UNEXPECTED_DELETE_FILE_VECTOR_ERROR", message="Unexpected error occurred while deleting file/vector.")
 
     async def process_embedding(self) -> Dict[str, Any]:
         try:
@@ -107,8 +124,17 @@ class FileService:
                 num_documents=kb_config.num_documents,
             )
 
-            kb.load(recreate=True, upsert=True)
+            kb.load(recreate=True, upsert=True, skip_existing=True)
             logger.info("[SERVICE][FILE] Knowledge base loaded and embeddings processed.")
+            
+            updated_rows = (
+            self.db.query(FileModel)
+            .filter(FileModel.status == 'pending')
+            .update({FileModel.status: 'processed'}, synchronize_session=False)
+            )
+            self.db.commit()
+
+            logger.info(f"[SERVICE][FILE] {updated_rows} files updated to 'processed'.")
 
             return {
                 "message": "Embedding processing completed.",

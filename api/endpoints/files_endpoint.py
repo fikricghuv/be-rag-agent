@@ -34,20 +34,34 @@ async def delete_file_endpoint(
     logger.info(f"[FILES] Request to delete file UUID: {uuid_file}")
     return file_service.delete_file_from_db(uuid_file=uuid_file)
 
-@router.post("/files/upload-file", response_model=UploadSuccessResponse, dependencies=[Depends(api_key_auth)], status_code=status.HTTP_201_CREATED)
+from typing import List
+
+@router.post(
+    "/files/upload-file", 
+    response_model=List[UploadSuccessResponse], 
+    dependencies=[Depends(api_key_auth)],
+    status_code=status.HTTP_201_CREATED
+)
 @handle_exceptions(tag="[FILES]")
 async def upload_file_endpoint(
-    file: UploadFile = File(..., description="File to upload"), 
-    file_service: FileService = Depends(get_file_service), 
+    files: List[UploadFile] = File(..., description="Files to upload"), 
+    file_service: FileService = Depends(get_file_service),
     access_token: str = Depends(verify_access_token) 
 ):
-    logger.info(f"[FILES] Uploading file: {file.filename}")
-    file_model_instance = await file_service.save_file(file)
-    return UploadSuccessResponse(
-        message="File uploaded successfully",
-        uuid_file=file_model_instance.uuid_file,
-        filename=file_model_instance.filename
-    )
+    logger.info(f"[FILES] Uploading {len(files)} file(s)")
+    
+    uploaded_files = []
+    for file in files:
+        file_model = await file_service.save_file(file)
+        uploaded_files.append(
+            UploadSuccessResponse(
+                message="File uploaded successfully",
+                uuid_file=file_model.uuid_file,
+                filename=file_model.filename
+            )
+        )
+
+    return uploaded_files
 
 @router.post("/files/embedding-file", response_model=EmbeddingProcessResponse, dependencies=[Depends(api_key_auth)])
 @handle_exceptions(tag="[FILES]")

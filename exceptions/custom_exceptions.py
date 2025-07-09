@@ -17,45 +17,45 @@ class ServiceException(Exception):
 
 
 class DatabaseException(ServiceException):
-    def __init__(self, message: str = "A database error occurred"):
+    def __init__(self, message: str = "A database error occurred", code: str = "DATABASE_ERROR"):
         super().__init__(
             message=message,
             status_code=500,
-            code="DATABASE_ERROR"
+            code=code
         )
 
 
 class NotFoundException(ServiceException):
-    def __init__(self, message: str = "Resource not found"):
+    def __init__(self, message: str = "Resource not found", code: str = "NOT_FOUND"):
         super().__init__(
             message=message,
             status_code=404,
-            code="NOT_FOUND"
+            code=code
         )
 
 
 class UnauthorizedException(ServiceException):
-    def __init__(self, message: str = "Unauthorized access"):
+    def __init__(self, message: str = "Unauthorized access", code: str = "UNAUTHORIZED"):
         super().__init__(
             message=message,
             status_code=401,
-            code="UNAUTHORIZED"
+            code=code
         )
 
 
 class ConflictException(ServiceException):
-    def __init__(self, message: str = "Conflict error"):
+    def __init__(self, message: str = "Conflict error", code: str = "CONFLICT_ERROR"):
         super().__init__(
             message=message,
             status_code=409,
-            code="CONFLICT_ERROR"
+            code=code
         )
 
 
 class ValidationException(ServiceException):
-    def __init__(self, message: str = "Validation failed"):
+    def __init__(self, message: str = "Validation failed", code: str = "VALIDATION_ERROR"):
         super().__init__(
             message=message,
             status_code=422,
-            code="VALIDATION_ERROR"
+            code=code
         )

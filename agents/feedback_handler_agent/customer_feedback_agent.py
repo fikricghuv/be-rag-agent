@@ -1,10 +1,8 @@
 from agno.agent import Agent
 from agents.models.openai_model import openai_model
-from utils.get_instruction_from_db_utils import get_instructions_from_db
 from core.settings import DB_NAME, USER_DB, PASSWORD_DB, HOST, PORT, SCHEMA_TABLE, OPEN_ROUTER_API_KEY
 from textwrap import dedent
 from agno.models.openrouter import OpenRouter
-instructions_from_db = get_instructions_from_db('Customer Feedback Agent')
 
 from agno.tools.postgres import PostgresTools
 

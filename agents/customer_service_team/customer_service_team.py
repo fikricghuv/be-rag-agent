@@ -1,7 +1,6 @@
 from agents.models.openai_model import openai_model
 from agno.storage.agent.postgres import PostgresAgentStorage
 from agno.memory.db.postgres import PgMemoryDb, MemoryDb
-from utils.get_instruction_from_db_utils import get_instructions_from_db
 from core.settings import URL_DB_POSTGRES, OPEN_ROUTER_API_KEY
 from utils.get_knowledge_base_param_utils import get_knowledge_base_config
 from agents.product_information_agent.product_information_agent import product_information_agent
@@ -11,7 +10,6 @@ from agno.team.team import Team, TeamMemory
 from textwrap import dedent
 from agno.models.openrouter import OpenRouter
 
-instructions_from_db = get_instructions_from_db('Customer Service Agent')
 kb_config = get_knowledge_base_config()
 
 storage = PostgresAgentStorage(
