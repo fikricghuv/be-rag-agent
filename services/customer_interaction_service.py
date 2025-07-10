@@ -1,10 +1,13 @@
 import logging
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
+from sqlalchemy import or_, func
 from fastapi import Depends
 from core.config_db import config_db
 from database.models.customer_interaction_model import CustomerInteraction
 from exceptions.custom_exceptions import DatabaseException
+from typing import Optional
+
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +19,7 @@ class CustomerInteractionService:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_all_customer_interactions(self, offset: int = 0, limit: int = 100) -> dict:
+    def get_all_customer_interactions(self, offset: int = 0, limit: int = 100, search: Optional[str] = None) -> dict:
         """
         Mengambil semua customer interactions dengan pagination.
 
@@ -28,13 +31,29 @@ class CustomerInteractionService:
             dict: Berisi total dan list data.
         """
         try:
-            logger.info(f"[SERVICE][CUSTOMER_INTERACTION] Fetching interactions offset={offset}, limit={limit}")
+            logger.info(f"[SERVICE][CUSTOMER_INTERACTION] Fetching interactions offset={offset}, limit={limit}, search='{search}'")
+            query = self.db.query(CustomerInteraction)
 
-            total = self.db.query(CustomerInteraction).count()
+            if search:
+                search_term = f"%{search.lower()}%"
+                query = query.filter(
+                    or_(
+                        func.lower(CustomerInteraction.initial_query).ilike(search_term),
+                        func.lower(CustomerInteraction.main_topic).ilike(search_term),
+                        func.lower(CustomerInteraction.detected_intent).ilike(search_term),
+                        func.lower(CustomerInteraction.channel).ilike(search_term),
+                        func.lower(CustomerInteraction.product_involved).ilike(search_term),
+                    )
+                )
 
-            interactions = self.db.query(CustomerInteraction) \
-                .order_by(CustomerInteraction.created_at.desc()) \
-                .offset(offset).limit(limit).all()
+            total = query.count()
+
+            interactions = (
+                query.order_by(CustomerInteraction.created_at.desc())
+                .offset(offset)
+                .limit(limit)
+                .all()
+            )
 
             logger.info(f"[SERVICE][CUSTOMER_INTERACTION] Retrieved {len(interactions)} interaction(s).")
 

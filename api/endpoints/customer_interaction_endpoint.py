@@ -1,6 +1,6 @@
 import logging
 from fastapi import APIRouter, Depends, Query
-from typing import List
+from typing import List, Optional
 from fastapi.encoders import jsonable_encoder
 from schemas.customer_interaction_schema import PaginatedCustomerInteractionResponse, CustomerInteractionResponse
 from services.customer_interaction_service import CustomerInteractionService, get_customer_interaction_service
@@ -19,6 +19,7 @@ async def get_all_customer_interactions_endpoint(
     customer_interaction: CustomerInteractionService = Depends(get_customer_interaction_service),
     offset: int = Query(0),
     limit: int = Query(100, le=200),
+    search: Optional[str] = Query(None),
     access_token: str = Depends(verify_access_token)
 ):
     """
@@ -26,7 +27,7 @@ async def get_all_customer_interactions_endpoint(
     Membutuhkan access token dan API key yang valid.
     """
     logger.info(f"[INTERACTION] Fetching interactions offset={offset}, limit={limit}")
-    result = customer_interaction.get_all_customer_interactions(offset, limit)
+    result = customer_interaction.get_all_customer_interactions(offset, limit, search)
 
     logger.info(f"[INTERACTION] Fetched total={result['total']}")
     return PaginatedCustomerInteractionResponse(
