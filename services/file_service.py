@@ -11,7 +11,7 @@ from agents.tools.knowledge_base_tools import knowledge_base
 from schemas.knowledge_base_config_schema import KnowledgeBaseConfig
 from utils.get_knowledge_base_param_utils import get_knowledge_base_config
 from exceptions.custom_exceptions import DatabaseException, ServiceException
-from sqlalchemy import text
+from sqlalchemy import text, desc
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ class FileService:
     def fetch_all_files(self) -> List[FileModel]:
         try:
             logger.info("[SERVICE][FILE] Fetching all files from database.")
-            files = self.db.query(FileModel).all()
+            files = self.db.query(FileModel).order_by(desc(FileModel.uploaded_at)).all()
             logger.info(f"[SERVICE][FILE] Successfully fetched {len(files)} files.")
             return files
         
