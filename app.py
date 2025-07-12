@@ -16,6 +16,7 @@ from api.endpoints.customer_interaction_endpoint import router as customer_inter
 from api.endpoints.report_endpoint import router as report_endpoint
 from api.endpoints.user_endpoint import router as user_endpoint
 from api.endpoints.customer_profile_endpoint import router as customer_profile
+from api.endpoints.user_activity_log_endpoint import router as user_activity_log_endpoint
 from api.websocket.chat_ws import router as chat_ws
 from api.jobs.scheduler import start_scheduler
 from fastapi.staticfiles import StaticFiles 
@@ -48,6 +49,12 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Referrer-Policy"] = "no-referrer"
 
     return response
+
+from starlette.middleware.base import BaseHTTPMiddleware
+from middleware.log_user_activity import log_user_activity  
+
+app.add_middleware(BaseHTTPMiddleware, dispatch=log_user_activity)
+
 
 @app.exception_handler(429)
 async def rate_limit_handler(request: Request, exc):
@@ -83,6 +90,7 @@ app.include_router(customer_interaction_endpoint)
 app.include_router(report_endpoint)
 app.include_router(user_endpoint)
 app.include_router(customer_profile)
+app.include_router(user_activity_log_endpoint)
 #Daftar route websocket
 app.include_router(chat_ws)
 

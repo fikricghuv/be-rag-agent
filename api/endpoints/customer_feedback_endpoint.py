@@ -7,6 +7,7 @@ from schemas.customer_feedback_response_schema import CustomerFeedbackResponse
 from services.customer_feedback_service import CustomerFeedbackService, get_customer_feedback_service
 from middleware.verify_api_key_header import api_key_auth
 from middleware.token_dependency import verify_access_token
+from middleware.log_user_activity import log_user_activity
 from utils.exception_handler import handle_exceptions
 
 logging.basicConfig(level=logging.INFO)

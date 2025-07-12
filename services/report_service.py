@@ -66,7 +66,7 @@ class ReportService:
 
             elif report_type == "CUSTOMER_PROFILE":
                 query = text("""
-                    SELECT full_name, first_name, last_name, email, phone_number,
+                    SELECT full_name, email, phone_number,
                            customer_type, registration_date, last_activity_at, address,
                            city, country, is_active, created_at, updated_at
                     FROM ai.customers
@@ -78,7 +78,7 @@ class ReportService:
                 writer.writerow([f"Date Range: {start_date} to {end_date}"])
                 writer.writerow([])
                 writer.writerow([
-                    "Full Name", "First Name", "Last Name", "Email", "Phone Number",
+                    "Full Name", "Email", "Phone Number",
                     "Customer Type", "Registration Date", "Last Activity", "Address",
                     "City", "Country", "Is Active", "Created At", "Updated At"
                 ])
@@ -151,7 +151,7 @@ class ReportService:
                         ws["A2"] = f"Date Range: {start_date} to {end_date}"
 
                     query_to_excel("""
-                        SELECT full_name, first_name, last_name, email, phone_number,
+                        SELECT full_name, email, phone_number,
                            customer_type, registration_date, last_activity_at, address,
                            city, country, is_active, created_at, updated_at
                         FROM ai.customers
