@@ -1,6 +1,8 @@
-from sqlalchemy import Column, String, Boolean, DateTime, TIMESTAMP, ForeignKey, Enum
+from sqlalchemy import (
+    Column, String, Boolean, DateTime, TIMESTAMP, ForeignKey, Enum
+)
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base, relationship
 import uuid
 from datetime import datetime
 from database.enums.user_role_enum import UserRole
@@ -17,11 +19,24 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(TIMESTAMP, default=datetime.utcnow, onupdate=datetime.utcnow)
-    # role_id = Column(UUID(as_uuid=True), ForeignKey('ai.ms_role.id'))
     role = Column(
-        Enum(UserRole, name='user_role_enum', create_type=True, native_enum=True), # 'user_role_enum' akan menjadi nama tipe di DB
+        Enum(UserRole, name='user_role_enum', create_type=True, native_enum=True),
         nullable=False,
-        default=UserRole.USER # Default menggunakan anggota Enum
+        default=UserRole.USER
     )
+
+    # Relasi ke UserFCM
+    fcm_tokens = relationship("UserFCM", back_populates="user", cascade="all, delete-orphan")
+
     def __repr__(self):
         return f"<User(id='{self.id}', email='{self.email}')>"
+
+class UserFCM(Base):
+    __tablename__ = "user_fcm_tokens"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    token = Column(String, nullable=False)
+
+    # Relasi ke User
+    user = relationship("User", back_populates="fcm_tokens")

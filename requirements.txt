@@ -100,3 +100,4 @@ redis[async]
 pandas
 openpyxl
 apscheduler
+firebase-admin

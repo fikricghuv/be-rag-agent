@@ -73,3 +73,5 @@ pylint-report.log
 
 # Ignore notebooks output
 *.ipynb
+
+serviceAccountKey.json

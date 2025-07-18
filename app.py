@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from starlette.responses import JSONResponse
+from firebase import firebase_config
 
 from api.endpoints.auth_endpoint import router as auth_endpoint
 from api.endpoints.chat_history_endpoint import router as chat_history_endpoint
@@ -17,6 +18,8 @@ from api.endpoints.report_endpoint import router as report_endpoint
 from api.endpoints.user_endpoint import router as user_endpoint
 from api.endpoints.customer_profile_endpoint import router as customer_profile
 from api.endpoints.user_activity_log_endpoint import router as user_activity_log_endpoint
+from api.endpoints.notification_endpoint import router as notification_endpoint
+from api.endpoints.fcm_endpoint import router as fcm_endpoint
 from api.websocket.chat_ws import router as chat_ws
 from api.jobs.scheduler import start_scheduler
 from fastapi.staticfiles import StaticFiles 
@@ -72,10 +75,9 @@ async def http_exception_handler(request: Request, exc: HTTPException):
             content={"detail": "Forbidden: Invalid or missing API Key."},
         )
     return JSONResponse(
-        status_code=exc.status_code,
+        status_code=int(exc.status_code),
         content={"detail": exc.detail},
     )
-
 
 # Daftarkan route Endpoint
 app.include_router(files_endpoint)
@@ -91,6 +93,8 @@ app.include_router(report_endpoint)
 app.include_router(user_endpoint)
 app.include_router(customer_profile)
 app.include_router(user_activity_log_endpoint)
+app.include_router(notification_endpoint)
+app.include_router(fcm_endpoint)
 #Daftar route websocket
 app.include_router(chat_ws)
 

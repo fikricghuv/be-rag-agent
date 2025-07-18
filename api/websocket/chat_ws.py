@@ -2,19 +2,20 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from core.config_db import get_db
-from core.redis_client import redis_client
+from api.websocket.redis_client import redis_client
 from services.chat_service import ChatService
 from typing import Optional, Dict
 import time
 from uuid import UUID
 from core.settings import VALID_API_KEYS
 import logging
+from services.chat_singleton import init_chat_service
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-active_websockets: Dict[UUID, WebSocket] = {}
+# active_websockets: Dict[UUID, WebSocket] = {}
 
 @router.websocket("/ws/chat")
 async def chat_ws(
@@ -46,20 +47,16 @@ async def chat_ws(
 
         await websocket.accept()
         logger.info(f"WebSocket terhubung: user_id={user_uuid}, role={role}")
-        active_websockets[user_uuid] = websocket
+        # active_websockets[user_uuid] = websocket
 
-        chat_service = ChatService(
-            db=db,
-            active_websockets=active_websockets,
-            redis=redis_client
-        )
+        chat_service = init_chat_service(db=db)
         
         await chat_service.mark_online(user_uuid, role)
 
         if role in {"user", "chatbot"}:
-            room_uuid = await chat_service.find_or_create_room_and_add_member(user_uuid, role)
+            room_uuid = await chat_service.find_or_create_room_and_add_member(db, user_uuid, role)
             await redis_client.set(f"{role}_room:{user_uuid}", str(room_uuid))
-            await chat_service.broadcast_active_rooms()
+            await chat_service.broadcast_active_rooms(db)
 
         while True:
             data = await websocket.receive_json()
@@ -79,7 +76,7 @@ async def chat_ws(
 
             if message_type == "message":
                 if role == "user" and room_uuid:
-                    await chat_service.handle_user_message(websocket, data, user_uuid, room_uuid, start_time)
+                    await chat_service.handle_user_message(db, websocket, data, user_uuid, room_uuid, start_time)
 
                 elif role == "admin":
                     target_room_id_str = data.get("room_id")
@@ -89,19 +86,19 @@ async def chat_ws(
                     try:
                         target_room_uuid = UUID(target_room_id_str)
                         await redis_client.set(f"admin_room:{user_uuid}", str(target_room_uuid))
-                        await chat_service.handle_admin_message(websocket, data, user_uuid, target_room_uuid)
+                        await chat_service.handle_admin_message(db, websocket, data, user_uuid, target_room_uuid)
                     except ValueError:
                         await websocket.send_json({"success": False, "error": "room_id tidak valid"})
                         continue
 
                 elif role == "chatbot" and room_uuid:
-                    await chat_service.handle_chatbot_message(websocket, data, user_uuid, room_uuid)
+                    await chat_service.handle_chatbot_message(db, websocket, data, user_uuid, room_uuid)
 
             elif message_type == "file" and role == "user" and room_uuid:
-                await chat_service.handle_user_file(websocket, data, user_uuid, room_uuid, start_time)
+                await chat_service.handle_user_file(db, websocket, data, user_uuid, room_uuid, start_time)
 
             elif message_type == "voice_note" and role == "user" and room_uuid:
-                await chat_service.handle_user_audio(websocket, data, user_uuid, room_uuid, start_time)
+                await chat_service.handle_user_audio(db, websocket, data, user_uuid, room_uuid, start_time)
 
             else:
                 logger.warning(f"Tipe pesan tidak dikenali atau tidak valid untuk {role}: {message_type}")
@@ -111,8 +108,8 @@ async def chat_ws(
         
         await chat_service.mark_offline(user_uuid, role)
 
-        if user_uuid in active_websockets:
-            del active_websockets[user_uuid]
+        # if user_uuid in active_websockets:
+        #     del active_websockets[user_uuid]
 
         if role == "admin":
             await redis_client.delete(f"admin_room:{user_uuid}")
@@ -122,15 +119,15 @@ async def chat_ws(
 
         if room_uuid:
             try:
-                await chat_service.handle_disconnect(user_uuid, role, room_uuid)
-                await chat_service.broadcast_active_rooms()
+                await chat_service.handle_disconnect(db, user_uuid, role, room_uuid)
+                await chat_service.broadcast_active_rooms(db)
             except Exception as e_disconnect:
                 logger.exception("Gagal saat disconnect user/chatbot %s", user_uuid)
 
     except Exception as e:
         logger.exception(f"Kesalahan fatal WebSocket: {e}")
-        if user_uuid in active_websockets:
-            del active_websockets[user_uuid]
+        # if user_uuid in active_websockets:
+        #     del active_websockets[user_uuid]
         try:
             await websocket.send_json({"error": f"Terjadi kesalahan internal: {e}"})
         except:
