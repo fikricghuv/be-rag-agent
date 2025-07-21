@@ -16,7 +16,13 @@ async def log_user_activity(request: Request, call_next: RequestResponseEndpoint
     print("proses User activity logged.")
 
     request_body = await request.body()
-    request_body_str = request_body.decode("utf-8") if request_body else ""
+    request_body_str = None
+    content_type = request.headers.get("content-type", "")
+    if "application/json" in content_type:
+        try:
+            request_body_str = request_body.decode("utf-8")
+        except UnicodeDecodeError:
+            request_body_str = None
 
     auth_header = request.headers.get("authorization")
     user_id = None

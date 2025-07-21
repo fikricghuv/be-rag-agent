@@ -50,11 +50,21 @@ class UserActivityLogService:
     def get_logs_by_user_id(self, user_id: UUID, offset: int = 0, limit: int = 10) -> List[UserActivityLog]:
         try:
             logger.info(f"[SERVICE][ACTIVITY_LOG] Fetching logs for user {user_id}")
+            
+            excluded_endpoints = [
+                '/auth/refresh',
+                '/auth/login',
+                '/fcm-token',
+                '/notification/token',
+                '/auth/generate_user_id'
+            ]
+            
             logs = (
                 self.db.query(UserActivityLog)
                 .filter(
                     UserActivityLog.user_id == user_id,
-                    UserActivityLog.method.in_(["POST", "PUT", "PATCH", "DELETE"])
+                    UserActivityLog.method.in_(["POST", "DELETE", "PUT"]),
+                    ~UserActivityLog.endpoint.in_(excluded_endpoints)
                 )
                 .order_by(UserActivityLog.timestamp.desc())
                 .offset(offset)
