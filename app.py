@@ -4,7 +4,12 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from starlette.responses import JSONResponse
 from firebase import firebase_config
-
+from fastapi.responses import PlainTextResponse
+from prometheus_fastapi_instrumentator import Instrumentator
+from api.jobs.scheduler import start_scheduler
+from fastapi.staticfiles import StaticFiles 
+from exceptions.custom_exceptions import ServiceException
+#router
 from api.endpoints.auth_endpoint import router as auth_endpoint
 from api.endpoints.chat_history_endpoint import router as chat_history_endpoint
 from api.endpoints.customer_feedback_endpoint import router as customer_feedback_endpoint
@@ -21,11 +26,11 @@ from api.endpoints.user_activity_log_endpoint import router as user_activity_log
 from api.endpoints.notification_endpoint import router as notification_endpoint
 from api.endpoints.fcm_endpoint import router as fcm_endpoint
 from api.websocket.chat_ws import router as chat_ws
-from api.jobs.scheduler import start_scheduler
-from fastapi.staticfiles import StaticFiles 
-from exceptions.custom_exceptions import ServiceException
 
 app = FastAPI()
+
+Instrumentator().instrument(app).expose(app)
+
 limiter = Limiter(key_func=get_remote_address)
 
 app.state.active_websockets = {}
@@ -112,6 +117,10 @@ app.mount("/static", StaticFiles(directory=static_path), name="static_files")
 @limiter.limit("10/minute")  
 async def read_root(request: Request): 
     return {"message": "Welcome to the Service Monitoring TalkVera!"}
+
+@app.get("/healthz", response_class=PlainTextResponse)
+def healthz():
+    return "OK"
 
 @app.on_event("startup")
 def startup_event():

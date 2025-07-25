@@ -10,6 +10,10 @@ from uuid import UUID
 from core.settings import VALID_API_KEYS
 import logging
 from services.chat_singleton import init_chat_service
+from prometheus_client import Counter, Gauge
+
+ws_connection_count = Counter("ws_connections_total", "Total WebSocket connections ever created")
+ws_active_users = Gauge("ws_active_users", "Number of active WebSocket connections")
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +50,8 @@ async def chat_ws(
         user_uuid = UUID(user_id)
 
         await websocket.accept()
+        ws_connection_count.inc()
+        ws_active_users.inc() 
         logger.info(f"WebSocket terhubung: user_id={user_uuid}, role={role}")
         # active_websockets[user_uuid] = websocket
 
@@ -107,6 +113,7 @@ async def chat_ws(
         logger.info(f"WebSocket putus: {user_uuid} ({role}). Code: {e.code}")
         
         await chat_service.mark_offline(user_uuid, role)
+        ws_active_users.dec() 
 
         # if user_uuid in active_websockets:
         #     del active_websockets[user_uuid]
@@ -126,8 +133,10 @@ async def chat_ws(
 
     except Exception as e:
         logger.exception(f"Kesalahan fatal WebSocket: {e}")
-        # if user_uuid in active_websockets:
-        #     del active_websockets[user_uuid]
+        
+        await chat_service.mark_offline(user_uuid, role)
+        ws_active_users.dec()
+        
         try:
             await websocket.send_json({"error": f"Terjadi kesalahan internal: {e}"})
         except:

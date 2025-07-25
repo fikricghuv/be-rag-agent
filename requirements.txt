@@ -101,3 +101,4 @@ pandas
 openpyxl
 apscheduler
 firebase-admin
+prometheus-fastapi-instrumentator
