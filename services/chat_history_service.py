@@ -142,13 +142,13 @@ class ChatHistoryService:
     def _get_escalation_condition(self):
         """
         Mengembalikan kondisi SQLAlchemy untuk mengidentifikasi eskalasi.
-        Berdasarkan kemunculan 'INSERT INTO ai.customer_feedback' di agent_tools_call.
+        Berdasarkan kemunculan 'INSERT INTO ai.dt_customer_feedback' di agent_tools_call.
         """
         return exists(
             select(1).select_from(
                 func.unnest(Chat.agent_tools_call).alias("tool")
             ).where(
-                column("tool", type_=TEXT).ilike('%INSERT INTO ai.customer_feedback%')
+                column("tool", type_=TEXT).ilike('%INSERT INTO ai.dt_customer_feedback%')
             )
         )
 
@@ -591,8 +591,8 @@ class ChatHistoryService:
         
     def get_escalation_by_month(self):
         """
-        Menghitung total eskalasi bulanan berdasarkan kemunculan 'INSERT INTO ai.customer_feedback'
-        di dalam elemen array 'agent_tools_call' pada tabel 'chats'.
+        Menghitung total eskalasi bulanan berdasarkan kemunculan 'INSERT INTO ai.dt_customer_feedback'
+        di dalam elemen array 'agent_tools_call' pada tabel 'dt_chats'.
         Mengembalikan dict: {'YYYY-MM': count}, termasuk bulan di tahun ini yang belum memiliki data.
         """
         try:
@@ -602,7 +602,7 @@ class ChatHistoryService:
                 select(1).select_from(
                     func.unnest(Chat.agent_tools_call).alias("tool")
                 ).where(
-                    column("tool", type_=Text).ilike('%INSERT INTO ai.customer_feedback%')
+                    column("tool", type_=Text).ilike('%INSERT INTO ai.dt_customer_feedback%')
                 )
             )
 

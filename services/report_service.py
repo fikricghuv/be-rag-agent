@@ -34,7 +34,7 @@ class ReportService:
                     SELECT 
                         feedback_from_customer, sentiment, potential_actions, keyword_issue,
                         category, product_name, email_user, created_at
-                    FROM ai.customer_feedback
+                    FROM ai.dt_customer_feedback
                     WHERE created_at BETWEEN :start_date AND :end_date
                     ORDER BY created_at ASC
                 """)
@@ -52,7 +52,7 @@ class ReportService:
             elif report_type == "CHAT_HISTORY":
                 query = text("""
                     SELECT room_conversation_id, sender_id, message, role, created_at
-                    FROM ai.chats
+                    FROM ai.dt_chats
                     WHERE created_at BETWEEN :start_date AND :end_date
                     ORDER BY created_at ASC
                 """)
@@ -69,7 +69,7 @@ class ReportService:
                     SELECT full_name, email, phone_number,
                            customer_type, registration_date, last_activity_at, address,
                            city, country, is_active, created_at, updated_at
-                    FROM ai.customers
+                    FROM ai.dt_customer_profile
                     WHERE created_at BETWEEN :start_date AND :end_date
                     ORDER BY created_at ASC
                 """)
@@ -88,7 +88,7 @@ class ReportService:
             elif report_type == "MOST_QUESTION":
                 query = text("""
                     SELECT agent_response_category, COUNT(*) AS count
-                    FROM ai.chats
+                    FROM ai.dt_chats
                     WHERE agent_response_category IS NOT NULL AND agent_response_category != ''
                           AND created_at BETWEEN :start_date AND :end_date
                     GROUP BY agent_response_category
@@ -110,7 +110,7 @@ class ReportService:
                            keywords_extracted, sentiment_score, product_involved,
                            customer_feedback_id, customer_feedback_score, customer_feedback_comment,
                            feedback_submitted, created_at
-                    FROM ai.customer_interactions
+                    FROM ai.dt_customer_interactions
                     WHERE created_at BETWEEN :start_date AND :end_date
                     ORDER BY created_at ASC
                 """)
@@ -154,7 +154,7 @@ class ReportService:
                         SELECT full_name, email, phone_number,
                            customer_type, registration_date, last_activity_at, address,
                            city, country, is_active, created_at, updated_at
-                        FROM ai.customers
+                        FROM ai.dt_customer_profile
                         WHERE created_at BETWEEN :start_date AND :end_date
                         ORDER BY created_at ASC
                     """, "Customer Profile", "Customer Profile")
@@ -166,14 +166,14 @@ class ReportService:
                            keywords_extracted, sentiment_score, product_involved,
                            customer_feedback_id, customer_feedback_score, customer_feedback_comment,
                            feedback_submitted, created_at
-                        FROM ai.customer_interactions
+                        FROM ai.dt_customer_interactions
                         WHERE created_at BETWEEN :start_date AND :end_date
                         ORDER BY created_at ASC
                     """, "Customer Interaction", "Customer Interaction")
 
                     query_to_excel("""
                         SELECT agent_response_category, COUNT(*) AS count
-                        FROM ai.chats
+                        FROM ai.dt_chats
                         WHERE agent_response_category IS NOT NULL AND agent_response_category != ''
                             AND created_at BETWEEN :start_date AND :end_date
                         GROUP BY agent_response_category
@@ -184,7 +184,7 @@ class ReportService:
                         SELECT 
                             feedback_from_customer, sentiment, potential_actions, keyword_issue,
                             category, product_name, email_user, created_at
-                        FROM ai.customer_feedback
+                        FROM ai.dt_customer_feedback
                         WHERE created_at BETWEEN :start_date AND :end_date
                         ORDER BY created_at ASC
                     """, "Customer Feedback", "Customer Feedback")
@@ -192,7 +192,7 @@ class ReportService:
                     query_to_excel("""
                         SELECT id, room_conversation_id, sender_id, message, role,
                             agent_response_category, created_at
-                        FROM ai.chats
+                        FROM ai.dt_chats
                         WHERE created_at BETWEEN :start_date AND :end_date
                         ORDER BY created_at ASC
                     """, "Chat History", "Chat History")

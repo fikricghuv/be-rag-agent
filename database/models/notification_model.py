@@ -7,7 +7,7 @@ from datetime import datetime
 Base = declarative_base()
 
 class Notification(Base):
-    __tablename__ = "notifications"
+    __tablename__ = "dt_notifications"
     __table_args__ = {"schema": "ai"}
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)

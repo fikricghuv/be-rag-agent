@@ -3,7 +3,7 @@ from sqlalchemy import Column, Integer, String
 
 Base = declarative_base()
 class KnowledgeBaseConfigModel(Base):
-    __tablename__ = "knowledge_base_config"
+    __tablename__ = "ms_knowledge_base_config"
     id = Column(Integer, primary_key=True)
     chunk_size = Column(Integer, nullable=False)
     overlap = Column(Integer, nullable=False)

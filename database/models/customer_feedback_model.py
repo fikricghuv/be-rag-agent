@@ -7,7 +7,7 @@ Base = declarative_base()
 
 # Model Customer Feedback
 class CustomerFeedback(Base):
-    __tablename__ = "customer_feedback"
+    __tablename__ = "dt_customer_feedback"
     id = Column(Integer, primary_key=True, index=True)
     feedback_from_customer = Column(Text, nullable=False)
     sentiment = Column(Text, nullable=False)

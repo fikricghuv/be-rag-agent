@@ -7,7 +7,7 @@ from uuid import uuid4
 Base = declarative_base()
 
 class UserActivityLog(Base):
-    __tablename__ = "user_activity_logs"
+    __tablename__ = "dt_user_activity_log"
     __table_args__ = {"schema": "ai"}
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)

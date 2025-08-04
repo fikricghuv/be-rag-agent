@@ -81,7 +81,7 @@ class FileService:
 
             # Hapus data dari vector_documents dengan name yang sama
             delete_vector_documents = """
-                DELETE FROM ai.vector_documents
+                DELETE FROM ai.ms_vector_documents
                 WHERE name = :filename_without_ext
             """
             self.db.execute(text(delete_vector_documents), {"filename_without_ext": filename_without_ext})

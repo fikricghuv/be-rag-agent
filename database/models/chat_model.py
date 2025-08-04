@@ -6,11 +6,11 @@ from database.base import Base
 
 
 class Chat(Base):
-    __tablename__ = "chats"
+    __tablename__ = "dt_chats"
     __table_args__ = {"schema": "ai"}
 
     id = Column(Uuid, primary_key=True, default=uuid.uuid4)
-    room_conversation_id = Column(Uuid, ForeignKey("ai.room_conversation.id", ondelete="CASCADE"), nullable=False)
+    room_conversation_id = Column(Uuid, ForeignKey("ai.dt_room_conversation.id", ondelete="CASCADE"), nullable=False)
     sender_id = Column(Uuid, nullable=False)
     message = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

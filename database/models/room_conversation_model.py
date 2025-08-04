@@ -5,7 +5,7 @@ import uuid
 from sqlalchemy.sql import func
 
 class RoomConversation(Base):
-    __tablename__ = "room_conversation"
+    __tablename__ = "dt_room_conversation"
     __table_args__ = {"schema": "ai"}
 
     id = Column(Uuid, primary_key=True, default=uuid.uuid4) 

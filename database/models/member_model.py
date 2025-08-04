@@ -5,11 +5,11 @@ from sqlalchemy.sql import func
 from database.base import Base
 
 class Member(Base):
-    __tablename__ = "members"
+    __tablename__ = "dt_members"
     __table_args__ = {"schema": "ai"}
 
     id = Column(Uuid, primary_key=True, default=uuid.uuid4) 
-    room_conversation_id = Column(Uuid, ForeignKey("ai.room_conversation.id", ondelete="CASCADE"), nullable=False) # Use Uuid
+    room_conversation_id = Column(Uuid, ForeignKey("ai.dt_room_conversation.id", ondelete="CASCADE"), nullable=False) # Use Uuid
     user_id = Column(Uuid, nullable=False)  
     role = Column(String(20), nullable=False)
     joined_at = Column(DateTime(timezone=True), server_default=func.now())

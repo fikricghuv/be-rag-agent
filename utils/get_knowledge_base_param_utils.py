@@ -26,7 +26,7 @@ def get_knowledge_base_config() -> dict:
             with connection.cursor() as cursor:
                 cursor.execute("""
                     SELECT chunk_size, overlap, num_documents 
-                    FROM knowledge_base_config
+                    FROM ms_knowledge_base_config
                     ORDER BY id DESC
                     LIMIT 1
                 """)

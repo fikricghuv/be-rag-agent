@@ -66,10 +66,10 @@ def prompt_agent() -> str:
     Langkah 2.3: Minta informasi berikut:
         - Alamat email yang bisa dihubungi
         - Uraian singkat mengenai masalah atau kendala yang dialami
-    Langkah 2.4: Simpan keluhan tersebut ke database `ai.customer_feedback` menggunakan PostgresTools dengan format berikut:
+    Langkah 2.4: Simpan keluhan tersebut ke database `ai.dt_customer_feedback` menggunakan PostgresTools dengan format berikut:
     
     ```sql
-    INSERT INTO ai.customer_feedback(
+    INSERT INTO ai.dt_customer_feedback(
         id, feedback_from_customer, sentiment, potential_actions, keyword_issue,
         created_at, category, product_name, email_user
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);

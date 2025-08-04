@@ -14,7 +14,7 @@ def knowledge_base (chunk_size, overlap, num_documents):
         path="resources/pdf_from_postgres",
         # Table name: ai.pdf_documents
         vector_db=PgVector(
-            table_name="vector_documents",
+            table_name="ms_vector_documents",
             db_url=URL_DB_POSTGRES,
             search_type=SearchType.hybrid,
             embedder=OpenAIEmbedder()
@@ -28,7 +28,7 @@ def knowledge_base_json ():
     json_knowledge_base = JSONKnowledgeBase(
         path="resources/json_document_insurance",
         vector_db=PgVector(
-            table_name="vector_documents",
+            table_name="ms_vector_documents",
             db_url=URL_DB_POSTGRES,
             search_type=SearchType.vector,
             embedder=OpenAIEmbedder(),

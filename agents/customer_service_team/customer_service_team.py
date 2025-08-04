@@ -14,7 +14,7 @@ kb_config = get_knowledge_base_config()
 
 storage = PostgresAgentStorage(
     # store sessions in the ai.sessions table
-    table_name="agent_sessions",
+    table_name="dt_agent_sessions",
     # db_url: Postgres database URL
     db_url=URL_DB_POSTGRES,
 )
@@ -75,7 +75,7 @@ def call_agent(session_id, user_id) :
         memory=TeamMemory(
             user_id=user_id,
             db=PgMemoryDb(
-                table_name="agent_memory", 
+                table_name="dt_agent_memory", 
                 db_url=URL_DB_POSTGRES), 
             create_user_memories=True,
             updating_memory=True,

@@ -10,7 +10,7 @@ from database.enums.user_role_enum import UserRole
 Base = declarative_base()
 
 class User(Base):
-    __tablename__ = "users"
+    __tablename__ = "ms_admin_users"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String(255), unique=True, nullable=False)
@@ -32,10 +32,10 @@ class User(Base):
         return f"<User(id='{self.id}', email='{self.email}')>"
 
 class UserFCM(Base):
-    __tablename__ = "user_fcm_tokens"
+    __tablename__ = "dt_user_fcm_token"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("ms_admin_users.id"), nullable=False)
     token = Column(String, nullable=False)
 
     # Relasi ke User

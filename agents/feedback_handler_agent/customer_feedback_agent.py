@@ -17,7 +17,7 @@ postgres_tools = PostgresTools(
 )
 
 query_sql = """
-INSERT INTO ai.customer_feedback(
+INSERT INTO ai.dt_customer_feedback(
         id, feedback_from_customer, sentiment, potential_actions, keyword_issue, created_at, category, product_name, email_user)
         VALUES (id, feedback_from_customer, sentiment, potential_actions, keyword_issue, created_at, category, product_name, email_user);
 """
@@ -41,12 +41,12 @@ customer_feedback_agent = Agent(
         - Penjelasan masalah (harus ada)
     3. Jika ada data yang belum lengkap, ajukan pertanyaan lanjutan ke customer untuk melengkapinya.
     4. Setelah semua data terkumpul, simpan informasi tersebut ke database menggunakan tools postgres_tools.
-    5. Tabel tujuan: `ai.customer_feedback`
+    5. Tabel tujuan: `ai.dt_customer_feedback`
 
     ### Format query yang digunakan:
     Gunakan query berikut untuk menyimpan data:
 
-    INSERT INTO ai.customer_feedback(
+    INSERT INTO ai.dt_customer_feedback(
         id, 
         feedback_from_customer, 
         sentiment, 

@@ -5,11 +5,11 @@ from sqlalchemy.dialects.postgresql import UUID, JSONB
 Base = declarative_base()
 
 class CustomerInteraction(Base):
-    __tablename__ = "customer_interactions"
+    __tablename__ = "dt_customer_interactions"
     __table_args__ = {"schema": "ai"}
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
-    conversation_id = Column(UUID(as_uuid=True), ForeignKey("ai.room_conversation.id"), nullable=False)
+    conversation_id = Column(UUID(as_uuid=True), ForeignKey("ai.dt_room_conversation.id"), nullable=False)
     customer_id = Column(UUID(as_uuid=True))
     start_time = Column(DateTime(timezone=True), nullable=False)
     end_time = Column(DateTime(timezone=True))
@@ -26,7 +26,7 @@ class CustomerInteraction(Base):
     keywords_extracted = Column(ARRAY(Text))
     sentiment_score = Column(Numeric(3, 2))
     product_involved = Column(String)
-    customer_feedback_id = Column(Integer, ForeignKey("ai.customer_feedback.id"))
+    customer_feedback_id = Column(Integer, ForeignKey("ai.dt_customer_feedback.id"))
     customer_feedback_score = Column(Integer)
     customer_feedback_comment = Column(Text)
     feedback_submitted = Column(Boolean, default=False)

@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import UUID
 Base = declarative_base()
 
 class FileModel(Base):
-    __tablename__ = "uploaded_files"
+    __tablename__ = "dt_uploaded_file"
 
     id = Column(UUID(as_uuid=True), primary_key=True, index=True, default=uuid.uuid4)
     uuid_file = Column(UUID(as_uuid=True), unique=True, nullable=False)

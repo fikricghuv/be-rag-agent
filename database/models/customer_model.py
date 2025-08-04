@@ -6,7 +6,7 @@ import uuid
 Base = declarative_base()
 
 class Customer(Base):
-    __tablename__ = "customers"
+    __tablename__ = "dt_customer_profile"
     __table_args__ = {"schema": "ai"}
 
     customer_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

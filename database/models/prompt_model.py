@@ -9,7 +9,7 @@ Base = declarative_base()
 
 # Model Prompt
 class Prompt(Base):
-    __tablename__ = "prompts"
+    __tablename__ = "ms_prompt"
     
     id = Column(UUID(as_uuid=True), primary_key=True, index=True, default=uuid.uuid4)
     name = Column(String(255), unique=True, index=True, nullable=False)
