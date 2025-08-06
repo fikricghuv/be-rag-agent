@@ -2,9 +2,11 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import Optional
 from schemas.customer_schema import CustomerOut, CustomerResponse
-from services.customer_profile import CustomerProfileService, get_customer_service
+from services.customer_profile_service import CustomerProfileService, get_customer_service
 from middleware.token_dependency import verify_access_token
 from exceptions.custom_exceptions import DatabaseException, ServiceException
+from middleware.auth_client_dependency import get_authenticated_client
+from uuid import UUID
 
 router = APIRouter(tags=["Customers"])
 
@@ -17,11 +19,12 @@ def get_all_customers(
     limit: int = Query(10),
     search: Optional[str] = Query(None),
     customer_service: CustomerProfileService = Depends(get_customer_service),
-    access_token: str = Depends(verify_access_token) 
+    access_token: str = Depends(verify_access_token),
+    client_id: UUID = Depends(get_authenticated_client) 
 ):
     try:
         logger.info(f"[CUSTOMER] Get all customers offset={offset}, limit={limit}, search={search}")
-        result = customer_service.get_all_customers(limit=limit, offset=offset, search=search)
+        result = customer_service.get_all_customers(limit=limit, offset=offset, search=search, client_id=client_id)
         logger.info(f"[CUSTOMER] Retrieved {len(result['data'])} customers")
 
         return {
@@ -46,11 +49,12 @@ def get_all_customers(
 def get_customer_by_id(
     customer_id: str,
     service: CustomerProfileService = Depends(get_customer_service),
-    access_token: str = Depends(verify_access_token) 
+    access_token: str = Depends(verify_access_token),
+    client_id: UUID = Depends(get_authenticated_client) 
 ):
     try:
         logger.info(f"[CUSTOMER] Get customer by ID: {customer_id}")
-        customer = service.get_customer_by_id(customer_id)
+        customer = service.get_customer_by_id(customer_id, client_id=client_id)
         if not customer:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

@@ -1,14 +1,13 @@
-from sqlalchemy.orm import declarative_base
 from sqlalchemy import Column, Integer, Text, DateTime, String, ARRAY, Boolean, Numeric, ForeignKey, text
 from sqlalchemy.dialects.postgresql import UUID, JSONB
-
-Base = declarative_base()
+from database.base import Base
 
 class CustomerInteraction(Base):
     __tablename__ = "dt_customer_interactions"
     __table_args__ = {"schema": "ai"}
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    client_id = Column(UUID(as_uuid=True), ForeignKey("ai.ms_clients.id", ondelete="CASCADE"), nullable=False)
     conversation_id = Column(UUID(as_uuid=True), ForeignKey("ai.dt_room_conversation.id"), nullable=False)
     customer_id = Column(UUID(as_uuid=True))
     start_time = Column(DateTime(timezone=True), nullable=False)

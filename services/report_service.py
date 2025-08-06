@@ -10,6 +10,7 @@ from sqlalchemy import text
 from io import BytesIO
 import pandas as pd
 from exceptions.custom_exceptions import DatabaseException, ServiceException
+from uuid import UUID
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -22,47 +23,69 @@ class ReportService:
         for col in df.select_dtypes(include=["datetimetz"]).columns:
             df[col] = df[col].dt.tz_localize(None)
         return df
+    
+    def _write_query_results(self, writer, query, params, headers):
+        result = self.db.execute(text(query), params)
+        rows = result.fetchall()
+        writer.writerow(headers)
+        if rows:
+            for row in rows:
+                writer.writerow(list(row))
 
-    def report_csv(self, report_type: str, start_date: str, end_date: str) -> StreamingResponse:
+    def report_csv(self, report_type: str, start_date: str, end_date: str, client_id: UUID) -> StreamingResponse:
         try:
             logger.info(f"[SERVICE][REPORT] Generating report: {report_type} from {start_date} to {end_date}")
             buffer = io.StringIO()
             writer = csv.writer(buffer)
 
             if report_type == "CUSTOMER_FEEDBACK":
-                query = text("""
+                query = """
                     SELECT 
                         feedback_from_customer, sentiment, potential_actions, keyword_issue,
                         category, product_name, email_user, created_at
                     FROM ai.dt_customer_feedback
                     WHERE created_at BETWEEN :start_date AND :end_date
+                    AND client_id = :client_id
                     ORDER BY created_at ASC
-                """)
-                result = self.db.execute(query, {"start_date": start_date, "end_date": end_date})
+                """
+                params = {"start_date": start_date, "end_date": end_date, "client_id": client_id}
+                result = self.db.execute(text(query), params)
+                rows = result.fetchall()
+
                 writer.writerow([f"Report: Customer Feedback"])
                 writer.writerow([f"Date Range: {start_date} to {end_date}"])
                 writer.writerow([])
-                writer.writerow([
+
+                headers = [
                     "Feedback", "Sentiment", "Potential Actions", "Keyword Issue",
                     "Category", "Product Name", "Email", "Created At"
-                ])
-                for row in result:
-                    writer.writerow(list(row))
+                ]
+                writer.writerow(headers)
+
+                if rows:
+                    for row in rows:
+                        writer.writerow(list(row))
 
             elif report_type == "CHAT_HISTORY":
                 query = text("""
                     SELECT room_conversation_id, sender_id, message, role, created_at
                     FROM ai.dt_chats
                     WHERE created_at BETWEEN :start_date AND :end_date
+                    AND client_id = :client_id
                     ORDER BY created_at ASC
                 """)
-                result = self.db.execute(query, {"start_date": start_date, "end_date": end_date})
+                params = {"start_date": start_date, "end_date": end_date, "client_id": client_id}
+                result = self.db.execute(text(query), params)
+                rows = result.fetchall()
+                
                 writer.writerow([f"Report: Chat History"])
                 writer.writerow([f"Date Range: {start_date} to {end_date}"])
                 writer.writerow([])
                 writer.writerow(["Room Conversation ID", "Sender ID", "Message", "Role", "Created At"])
-                for row in result:
-                    writer.writerow(list(row))
+                
+                if rows:
+                    for row in rows:
+                        writer.writerow(list(row))
 
             elif report_type == "CUSTOMER_PROFILE":
                 query = text("""
@@ -71,9 +94,14 @@ class ReportService:
                            city, country, is_active, created_at, updated_at
                     FROM ai.dt_customer_profile
                     WHERE created_at BETWEEN :start_date AND :end_date
+                    AND client_id = :client_id
                     ORDER BY created_at ASC
                 """)
-                result = self.db.execute(query, {"start_date": start_date, "end_date": end_date})
+                
+                params = {"start_date": start_date, "end_date": end_date, "client_id": client_id}
+                result = self.db.execute(text(query), params)
+                rows = result.fetchall()
+                
                 writer.writerow([f"Report: Customer Profile"])
                 writer.writerow([f"Date Range: {start_date} to {end_date}"])
                 writer.writerow([])
@@ -82,8 +110,10 @@ class ReportService:
                     "Customer Type", "Registration Date", "Last Activity", "Address",
                     "City", "Country", "Is Active", "Created At", "Updated At"
                 ])
-                for row in result:
-                    writer.writerow(list(row))
+                
+                if rows:
+                    for row in rows:
+                        writer.writerow(list(row))
 
             elif report_type == "MOST_QUESTION":
                 query = text("""
@@ -91,16 +121,23 @@ class ReportService:
                     FROM ai.dt_chats
                     WHERE agent_response_category IS NOT NULL AND agent_response_category != ''
                           AND created_at BETWEEN :start_date AND :end_date
+                          AND client_id = :client_id
                     GROUP BY agent_response_category
                     ORDER BY count DESC
                 """)
-                result = self.db.execute(query, {"start_date": start_date, "end_date": end_date})
+                
+                params = {"start_date": start_date, "end_date": end_date, "client_id": client_id}
+                result = self.db.execute(text(query), params)
+                rows = result.fetchall()
+                
                 writer.writerow([f"Report: Category Frequency"])
                 writer.writerow([f"Date Range: {start_date} to {end_date}"])
                 writer.writerow([])
                 writer.writerow(["Category", "Frequency"])
-                for row in result:
-                    writer.writerow(list(row))
+                
+                if rows:
+                    for row in rows:
+                        writer.writerow(list(row))
 
             elif report_type == "CUSTOMER_INTERACTION":
                 query = text("""
@@ -112,9 +149,14 @@ class ReportService:
                            feedback_submitted, created_at
                     FROM ai.dt_customer_interactions
                     WHERE created_at BETWEEN :start_date AND :end_date
+                    AND client_id = :client_id
                     ORDER BY created_at ASC
                 """)
-                result = self.db.execute(query, {"start_date": start_date, "end_date": end_date})
+                
+                params = {"start_date": start_date, "end_date": end_date, "client_id": client_id}
+                result = self.db.execute(text(query), params)
+                rows = result.fetchall()
+                
                 writer.writerow([f"Report: Customer Interactions"])
                 writer.writerow([f"Date Range: {start_date} to {end_date}"])
                 writer.writerow([])
@@ -125,27 +167,29 @@ class ReportService:
                     "Keywords Extracted", "Sentiment Score", "Product", "Feedback ID",
                     "Feedback Score", "Feedback Comment", "Feedback Submitted", "Created At"
                 ])
-                for row in result:
-                    row_data = list(row)
-                    if isinstance(row_data[15], list):
-                        row_data[15] = ", ".join(row_data[15])  # keywords_extracted
-                    writer.writerow(row_data)
+                
+                if rows:
+                    for row in result:
+                        row_data = list(row)
+                        if isinstance(row_data[15], list):
+                            row_data[15] = ", ".join(row_data[15]) 
+                        writer.writerow(row_data)
 
             elif report_type == "ALL_DATA":
                 output = BytesIO()
                 with pd.ExcelWriter(output, engine="openpyxl") as writer:
-                    def query_to_excel(query_str, sheet_name, label):
+                    def query_to_excel(query_str, sheet_name, label, headers):
                         df = pd.read_sql_query(
                             text(query_str),
                             self.db.bind,
-                            params={"start_date": start_date, "end_date": end_date}
+                            params={"start_date": start_date, "end_date": end_date, "client_id": client_id}
                         )
                         df = self._remove_timezone(df)
 
-                        # Tulis dulu ke Excel tanpa header tambahan
-                        df.to_excel(writer, sheet_name=sheet_name, startrow=3, index=False)
+                        if df.empty:
+                            df = pd.DataFrame(columns=headers)
 
-                        # Tambahkan header di atasnya setelah sheet terbentuk
+                        df.to_excel(writer, sheet_name=sheet_name, startrow=3, index=False)
                         ws = writer.book[sheet_name]
                         ws["A1"] = f"Report: {label}"
                         ws["A2"] = f"Date Range: {start_date} to {end_date}"
@@ -156,8 +200,11 @@ class ReportService:
                            city, country, is_active, created_at, updated_at
                         FROM ai.dt_customer_profile
                         WHERE created_at BETWEEN :start_date AND :end_date
+                        AND client_id = :client_id
                         ORDER BY created_at ASC
-                    """, "Customer Profile", "Customer Profile")
+                    """, "Customer Profile", "Customer Profile",
+                    ["Full Name", "Email", "Phone Number", "Customer Type", "Registration Date",
+                    "Last Activity", "Address", "City", "Country", "Is Active", "Created At", "Updated At"])
 
                     query_to_excel("""
                         SELECT id, conversation_id, customer_id, start_time, end_time, duration_seconds,
@@ -168,17 +215,25 @@ class ReportService:
                            feedback_submitted, created_at
                         FROM ai.dt_customer_interactions
                         WHERE created_at BETWEEN :start_date AND :end_date
+                        AND client_id = :client_id
                         ORDER BY created_at ASC
-                    """, "Customer Interaction", "Customer Interaction")
+                    """, "Customer Interaction", "Customer Interaction",
+                    ["ID", "Conversation ID", "Customer ID", "Start Time", "End Time", "Duration (s)",
+                    "Channel", "Initial Query", "Total Messages", "Is Handoff",
+                    "Agent ID", "Agent Name", "Conversation Status", "Detected Intent", "Main Topic",
+                    "Keywords Extracted", "Sentiment Score", "Product", "Feedback ID",
+                    "Feedback Score", "Feedback Comment", "Feedback Submitted", "Created At"])
 
                     query_to_excel("""
                         SELECT agent_response_category, COUNT(*) AS count
                         FROM ai.dt_chats
                         WHERE agent_response_category IS NOT NULL AND agent_response_category != ''
                             AND created_at BETWEEN :start_date AND :end_date
+                            AND client_id = :client_id
                         GROUP BY agent_response_category
                         ORDER BY count DESC
-                    """, "Most Question", "Most Question (Top Initial Queries)")
+                    """, "Most Question", "Most Question (Top Initial Queries)",
+                    ["Category", "Frequency"])
 
                     query_to_excel("""
                         SELECT 
@@ -186,16 +241,22 @@ class ReportService:
                             category, product_name, email_user, created_at
                         FROM ai.dt_customer_feedback
                         WHERE created_at BETWEEN :start_date AND :end_date
+                        AND client_id = :client_id
                         ORDER BY created_at ASC
-                    """, "Customer Feedback", "Customer Feedback")
+                    """, "Customer Feedback", "Customer Feedback",
+                    ["Feedback", "Sentiment", "Potential Actions", "Keyword Issue",
+                    "Category", "Product Name", "Email", "Created At"])
 
                     query_to_excel("""
                         SELECT id, room_conversation_id, sender_id, message, role,
                             agent_response_category, created_at
                         FROM ai.dt_chats
                         WHERE created_at BETWEEN :start_date AND :end_date
+                        AND client_id = :client_id
                         ORDER BY created_at ASC
-                    """, "Chat History", "Chat History")
+                    """, "Chat History", "Chat History",
+                    ["ID", "Room Conversation ID", "Sender ID", "Message", "Role",
+                    "Agent Response Category", "Created At"])
 
                 output.seek(0)
                 filename = f"{report_type.lower()}_{start_date}_to_{end_date}.xlsx"

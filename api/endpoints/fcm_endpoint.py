@@ -13,9 +13,9 @@ router = APIRouter()
 @router.post("/send-notification")
 async def send_fcm(
     request: FCMRequest,
-    db: AsyncSession = Depends(get_db)  # Tambahkan ini
+    db: AsyncSession = Depends(get_db)  
 ):
-    fcm = FCMService(db)  # Inisialisasi dengan db di sini
+    fcm = FCMService(db) 
     response = await fcm.send_message(
         fcm_token=request.token,
         title=request.title,

@@ -36,8 +36,8 @@ postgres_tools = PostgresTools(
     table_schema=SCHEMA_TABLE
 )
 
-def call_customer_service_agent(agent_id, session_id, user_id) :
-    name_agent, description_agent = get_customer_service_prompt_fields()
+def call_customer_service_agent(agent_id, session_id, user_id, client_id):
+    name_agent, description_agent = get_customer_service_prompt_fields(client_id)
     
     agent = Agent(
         name=name_agent,
@@ -51,7 +51,7 @@ def call_customer_service_agent(agent_id, session_id, user_id) :
         show_tool_calls=True,
         search_knowledge=True,
         tools=[postgres_tools, BaiduSearchTools(), TelegramTools(token=TELEGRAM_BOT_TOKEN, chat_id=TELEGRAM_CHAT_ID)],
-        instructions=prompt_agent(),
+        instructions=prompt_agent(client_id=client_id),
         
         # Store the chat history in the database
         storage=storage,

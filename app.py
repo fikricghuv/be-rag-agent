@@ -3,12 +3,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from starlette.responses import JSONResponse
-from firebase import firebase_config
 from fastapi.responses import PlainTextResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 from api.jobs.scheduler import start_scheduler
 from fastapi.staticfiles import StaticFiles 
 from exceptions.custom_exceptions import ServiceException
+from starlette.middleware.base import BaseHTTPMiddleware
+from middleware.log_user_activity import log_user_activity  
+from middleware.timeout_dependecy import TimeoutMiddleware
 #router
 from api.endpoints.auth_endpoint import router as auth_endpoint
 from api.endpoints.chat_history_endpoint import router as chat_history_endpoint
@@ -39,7 +41,13 @@ app.state.admin_room_associations = {}
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4200", "http://localhost:4201", "http://localhost:4202", "http://192.168.8.155:4200"],
+    allow_origins=["http://localhost:4200", 
+                   "http://localhost:4201", 
+                   "http://localhost:4202", 
+                   "http://192.168.8.155:4200", 
+                   "http://brins.localhost:4200", 
+                   "http://brins.localhost:4202"
+                   ],
     # allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
@@ -58,11 +66,9 @@ async def add_security_headers(request: Request, call_next):
 
     return response
 
-from starlette.middleware.base import BaseHTTPMiddleware
-from middleware.log_user_activity import log_user_activity  
-
 app.add_middleware(BaseHTTPMiddleware, dispatch=log_user_activity)
 
+app.add_middleware(TimeoutMiddleware, timeout=60)
 
 @app.exception_handler(429)
 async def rate_limit_handler(request: Request, exc):

@@ -6,7 +6,7 @@ from typing import Dict
 from uuid import UUID
 from starlette.websockets import WebSocket
 
-active_websockets: Dict[UUID, WebSocket] = {}
+active_websockets: Dict[UUID, Dict[UUID, WebSocket]] = {}
 
 chat_service_singleton: ChatService = None
 

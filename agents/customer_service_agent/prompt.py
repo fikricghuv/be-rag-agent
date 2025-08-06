@@ -2,12 +2,12 @@ from services.prompt_service import PromptService
 from core.config_db import config_db
 from sqlalchemy.orm import Session
 
-def get_customer_service_prompt_fields():
+def get_customer_service_prompt_fields(client_id):
     db_gen = config_db()
     db: Session = next(db_gen)
     try:
         prompt_service = PromptService(db)
-        prompts = prompt_service.fetch_customer_service_prompt()
+        prompts = prompt_service.fetch_customer_service_prompt(client_id)
         if not prompts:
             return "", "", "", ""
         prompt = prompts[0]
@@ -24,12 +24,12 @@ def get_customer_service_prompt_fields():
             pass
 
 
-def prompt_agent() -> str:
+def prompt_agent(client_id) -> str:
     db_gen = config_db()
     db: Session = next(db_gen)
     try:
         prompt_service = PromptService(db)
-        prompts = prompt_service.fetch_customer_service_prompt()
+        prompts = prompt_service.fetch_customer_service_prompt(client_id)
         prompt_from_db = prompts[0].style_communication if prompts else ""
     finally:
         try:

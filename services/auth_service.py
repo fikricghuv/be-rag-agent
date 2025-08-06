@@ -19,11 +19,12 @@ class AuthService:
     def __init__(self, db: Session):
         self.db = db
 
-    def generate_user_id(self, role: GenerateUserIdRequest) -> UserIdResponse:
+    def generate_user_id(self, role: GenerateUserIdRequest, client_id) -> UserIdResponse:
         try:
             logger.info(f"[SERVICE][AUTH] Generating user ID for role={role}")
+            
             user_id = str(uuid.uuid4())
-            db_user_id = UserIds(user_id=user_id, role=role)
+            db_user_id = UserIds(user_id=user_id, role=role, client_id=client_id)
             self.db.add(db_user_id)
             self.db.commit()
             self.db.refresh(db_user_id)
@@ -105,7 +106,8 @@ class AuthService:
                 email=request.email,
                 password=hash_password(request.password),
                 full_name=request.full_name,
-                role=request.role
+                role=request.role,
+                client_id=request.client_id
             )
             self.db.add(new_user)
             self.db.commit()

@@ -51,14 +51,12 @@ async def log_user_activity(request: Request, call_next: RequestResponseEndpoint
     try:
         db: Session = next(config_db())
 
-        # Attempt to parse request body string to JSON
         request_json = None
         try:
             request_json = json.loads(request_body_str) if request_body_str else None
         except Exception:
-            request_json = None  # or keep raw if needed
+            request_json = None  
 
-        # Attempt to parse response body string to JSON
         response_json = None
         try:
             response_json = json.loads(response_body.decode("utf-8")) if response_body else None
@@ -67,6 +65,7 @@ async def log_user_activity(request: Request, call_next: RequestResponseEndpoint
 
         log = UserActivityLog(
             user_id=user_id,
+            client_id = getattr(request.state, "client_id", None),
             endpoint=str(request.url.path),
             method=request.method,
             request_data=request_json,

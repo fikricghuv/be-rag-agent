@@ -7,7 +7,7 @@ from core.config_db import config_db
 from database.models.customer_interaction_model import CustomerInteraction
 from exceptions.custom_exceptions import DatabaseException
 from typing import Optional
-
+from uuid import UUID
 
 logger = logging.getLogger(__name__)
 
@@ -19,11 +19,12 @@ class CustomerInteractionService:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_all_customer_interactions(self, offset: int = 0, limit: int = 100, search: Optional[str] = None) -> dict:
+    def get_all_customer_interactions(self, client_id: UUID, offset: int = 0, limit: int = 100, search: Optional[str] = None) -> dict:
         """
-        Mengambil semua customer interactions dengan pagination.
+        Mengambil semua customer interactions milik client tertentu dengan pagination.
 
         Args:
+            client_id (UUID): ID client (tenant) yang sedang login.
             offset (int): Data yang dilewati.
             limit (int): Jumlah maksimum data yang diambil.
 
@@ -31,8 +32,9 @@ class CustomerInteractionService:
             dict: Berisi total dan list data.
         """
         try:
-            logger.info(f"[SERVICE][CUSTOMER_INTERACTION] Fetching interactions offset={offset}, limit={limit}, search='{search}'")
-            query = self.db.query(CustomerInteraction)
+            logger.info(f"[SERVICE][CUSTOMER_INTERACTION] Fetching interactions for client_id={client_id}, offset={offset}, limit={limit}, search='{search}'")
+
+            query = self.db.query(CustomerInteraction).filter(CustomerInteraction.client_id == client_id)
 
             if search:
                 search_term = f"%{search.lower()}%"
@@ -55,7 +57,7 @@ class CustomerInteractionService:
                 .all()
             )
 
-            logger.info(f"[SERVICE][CUSTOMER_INTERACTION] Retrieved {len(interactions)} interaction(s).")
+            logger.info(f"[SERVICE][CUSTOMER_INTERACTION] Retrieved {len(interactions)} interaction(s) for client_id={client_id}")
 
             return {
                 "total": total,
@@ -63,7 +65,7 @@ class CustomerInteractionService:
             }
 
         except SQLAlchemyError as e:
-            logger.error("[SERVICE][CUSTOMER_INTERACTION] DB error: %s", str(e), exc_info=True)
+            logger.error(f"[SERVICE][CUSTOMER_INTERACTION] DB error for client_id={client_id}: {e}", exc_info=True)
             raise DatabaseException(code="DB_FETCH_ERROR", message="Failed to fetch customer interactions from database.")
 
 def get_customer_interaction_service(db: Session = Depends(config_db)):

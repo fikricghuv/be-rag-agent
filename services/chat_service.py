@@ -11,7 +11,7 @@ import uuid
 import logging
 from datetime import timedelta
 from sqlalchemy.future import select
-from sqlalchemy import update
+from sqlalchemy import update, and_
 import sqlalchemy
 from openai import OpenAI
 from datetime import datetime
@@ -21,6 +21,7 @@ import os
 import subprocess
 import tempfile
 import os
+import json
 from agno.media import Audio
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
@@ -36,8 +37,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 class ChatService:
-    def __init__(self, db: AsyncSession, redis, active_websockets: Dict[uuid.UUID, WebSocket]):
-        # self.db: AsyncSession = db
+    def __init__(self, db: AsyncSession, redis, active_websockets: Dict[uuid.UUID, Dict[uuid.UUID, WebSocket]]):
         self.active_websockets = active_websockets
         self.redis = redis
         self.classify_chat_agent = classify_chat_agent
@@ -45,19 +45,25 @@ class ChatService:
         self.notification_service = NotificationService(db, redis)
         self.fcm_service = FCMService(db)
         
-    async def get_active_websocket(self, user_id: uuid.UUID) -> Optional[WebSocket]:
-        logger.debug(f"🔍 Mencari websocket aktif untuk user_id: {user_id}")
-        return self.active_websockets.get(user_id)
+    async def get_active_websocket(self, client_id: uuid.UUID, user_id: uuid.UUID) -> Optional[WebSocket]:
+        """Ambil websocket yang aktif berdasarkan client_id dan user_id"""
+        logger.debug(f"🔍 Mencari websocket aktif untuk client={client_id}, user_id={user_id}, client_id={client_id}")
+        return self.active_websockets.get(client_id, {}).get(user_id)
 
-    async def find_or_create_room_and_add_member(self, db: AsyncSession, user_id: uuid.UUID, role: str) -> uuid.UUID:
+    async def find_or_create_room_and_add_member(self, db: AsyncSession, user_id: uuid.UUID, role: str, client_id: UUID) -> uuid.UUID:
         
         try:
             result = await db.execute(
                 select(RoomConversation.id)
                 .join(Member, Member.room_conversation_id == RoomConversation.id)
-                .where(Member.user_id == user_id, RoomConversation.status != "closed")
+                .where(
+                    Member.user_id == user_id,
+                    RoomConversation.status != "closed",
+                    RoomConversation.client_id == client_id
+                )
                 .limit(1)
             )
+
             existing_room_id = result.scalar_one_or_none()
 
             if existing_room_id:
@@ -93,30 +99,39 @@ class ChatService:
                 room_uuid = uuid.uuid4()
                 logger.info(f"Creating new room: {room_uuid} for user: {user_id}")
 
-                new_room = RoomConversation(id=room_uuid, status="open", agent_active=True) 
+                new_room = RoomConversation(
+                    id=room_uuid, 
+                    client_id=client_id,
+                    status="open", 
+                    agent_active=True
+                )
                 db.add(new_room)
 
                 user_member_id = uuid.uuid4()
                 user_member = Member(
                     id=user_member_id,
+                    client_id=client_id,
                     room_conversation_id=room_uuid,
                     user_id=user_id,
                     role=role,
                     is_online=True,
                 )
                 db.add(user_member)
+                
                 logger.info(f"Added user member {user_member_id} to new room {room_uuid}.")
 
                 chatbot_member_user_id = uuid.uuid4()
                 chatbot_member_id = uuid.uuid4()
                 chatbot_member = Member(
                     id=chatbot_member_id,
+                    client_id=client_id,
                     room_conversation_id=room_uuid,
                     user_id=chatbot_member_user_id,
                     role="chatbot",
                     is_online=False,
                 )
                 db.add(chatbot_member)
+                
                 logger.info(f"Added chatbot member {chatbot_member_id} ({chatbot_member_user_id}) to new room {room_uuid}.")
 
 
@@ -135,6 +150,7 @@ class ChatService:
        room_conversation_id: uuid.UUID,
        sender_id: uuid.UUID,
        message: str,
+       client_id: UUID,
        agent_response_category: str = None,
        agent_response_latency: timedelta = None,
        agent_total_tokens: int = None,
@@ -156,7 +172,8 @@ class ChatService:
             agent_output_tokens=agent_output_tokens,
             agent_other_metrics=agent_other_metrics,
             agent_tools_call=agent_tools_call,
-            role=role
+            role=role,
+            client_id=client_id
         )
         db.add(chat_history)
         try:
@@ -168,7 +185,7 @@ class ChatService:
             raise
         return message
 
-    async def handle_user_message(self, db: AsyncSession, websocket: WebSocket, data: dict, user_id: uuid.UUID, room_id: uuid.UUID, start_time: float):
+    async def handle_user_message(self, db: AsyncSession, websocket: WebSocket, data: dict, user_id: uuid.UUID, room_id: uuid.UUID, start_time: float, client_id: UUID):
         message = data.get("message")
         logger.debug(f"User {user_id} sent message in room {room_id}: {message}")
 
@@ -194,11 +211,13 @@ class ChatService:
                 agent_output_tokens=None,
                 agent_other_metrics=None,
                 agent_tools_call=None,
-                role="user"
+                role="user",
+                client_id=client_id
             )
             logger.info("User message saved.")
 
             await self._send_message_to_associated_admins(
+                client_id,
                 room_id,
                 {"sender_id": str(user_id), "message": message, "role": "user", "room_id": str(room_id)}
             )
@@ -220,7 +239,7 @@ class ChatService:
                 await websocket.send_json({"success": False, "error": "Chatbot not found in this room."})
                 return
 
-            agent = call_customer_service_agent(str(chatbot_id), str(user_id), str(user_id))
+            agent = call_customer_service_agent(str(chatbot_id), str(user_id), str(user_id), client_id)
             logger.debug(f"Running agent for message: {message}")
             agent_response = agent.run(message)
 
@@ -245,7 +264,8 @@ class ChatService:
                 agent_output_tokens=output_token,
                 agent_other_metrics=None,
                 agent_tools_call=tools_call,
-                role="chatbot"
+                role="chatbot",
+                client_id=client_id
             )
             logger.info("Chatbot response saved.")
 
@@ -257,34 +277,20 @@ class ChatService:
             })
 
             await self._send_message_to_associated_admins(
+                client_id,
                 room_id,
                 {"sender_id": str(chatbot_id), "message": content, "role": "chatbot", "room_id": str(room_id)}
             )
 
             await db.execute(
                 update(RoomConversation)
-                .where(RoomConversation.id == room_id)
+                .where(and_(
+                    RoomConversation.id == room_id,
+                    RoomConversation.client_id == client_id
+                ))
                 .values(updated_at=datetime.utcnow())
             )
             await db.commit()
-            
-            # admin_fcm_tokens = await self.get_all_admin_fcm_tokens(db)
-
-            # for fcm_token in admin_fcm_tokens:
-            #     logger.info(f"Broadcasting message to {fcm_token} admins.")
-            #     # sebelumnya:
-            #     await self.fcm_service.send_message(
-            #         fcm_token,
-            #         title="Pesan Baru di Chat",
-            #         body=f"User mengirim pesan di Room {room_id}"
-            #     )
-
-            #     await self.notification_service.create_notification(
-            #         receiver_id=None, 
-            #         message=f"User mengirim pesan di Room {room_id}",
-            #         notif_type="chat",
-            #         is_broadcast=True
-            #     )
             
             admin_fcm_tokens = await self.get_all_admin_fcm_tokens(db)
 
@@ -299,6 +305,7 @@ class ChatService:
 
                 await self.notification_service.create_notification(
                     receiver_id=user_id,
+                    client_id=client_id,
                     message=f"User mengirim pesan di Room {room_id}",
                     notif_type="chat",
                     is_broadcast=True
@@ -309,7 +316,7 @@ class ChatService:
             logger.exception(f"Error handling user message in room {room_id}: {e}")
             await websocket.send_json({"success": False, "error": f"Terjadi kesalahan saat memproses pesan: {str(e)}"})
 
-    async def handle_chatbot_message(self, db : AsyncSession, websocket: WebSocket, data: dict, sender_id: uuid.UUID, room_id: uuid.UUID):
+    async def handle_chatbot_message(self, db : AsyncSession, websocket: WebSocket, data: dict, sender_id: uuid.UUID, room_id: uuid.UUID, client_id: UUID):
         
         message = data.get("message")
         if not message:
@@ -328,18 +335,27 @@ class ChatService:
             agent_output_tokens=None,
             agent_other_metrics=None,
             agent_tools_call=None,
-            role="chatbot" 
+            role="chatbot",
+            client_id=client_id 
         )
         logger.info(f"Chatbot message saved for room: {room_id}, sender: {sender_id}")
 
         try:
             user_members_result = await db.execute(
-                 select(Member).where(Member.room_conversation_id == room_id, Member.role == "user", Member.is_online == True)
+                select(Member)
+                .where(
+                    and_(
+                        Member.room_conversation_id == room_id,
+                        Member.role == "user",
+                        Member.is_online == True,
+                        Member.client_id == client_id
+                    )
+                )
             )
             user_members = user_members_result.scalars().all()
 
             for member in user_members:
-                user_websocket = await self.get_active_websocket(member.user_id)
+                user_websocket = await self.get_active_websocket(client_id, member.user_id)
                 if user_websocket:
                     try:
                         await user_websocket.send_json({"success": True, "data": message, "from": "chatbot", "room_id": str(room_id)})
@@ -348,14 +364,15 @@ class ChatService:
                         logger.error(f"Gagal mengirim pesan chatbot ke user {member.user_id} di room {room_id}: {e}", exc_info=True)
 
             await self._send_message_to_associated_admins(
-                 room_id,
-                 {"sender_id": str(sender_id), "message": message, "role": "chatbot", "room_id": str(room_id)}
+                client_id,
+                room_id,
+                {"sender_id": str(sender_id), "message": message, "role": "chatbot", "room_id": str(room_id)}
             )
 
         except SQLAlchemyError as e:
              logger.error(f"Error fetching members in handle_chatbot_message for room {room_id}: {e}", exc_info=True)
 
-    async def handle_admin_message(self, db : AsyncSession, websocket: WebSocket, data: dict, sender_id: uuid.UUID, room_id: uuid.UUID):
+    async def handle_admin_message(self, db : AsyncSession, websocket: WebSocket, data: dict, sender_id: uuid.UUID, room_id: uuid.UUID, client_id: UUID):
         
         admin_message = data.get("message")
 
@@ -373,7 +390,7 @@ class ChatService:
                 await websocket.send_json({"success": False, "error": "User tidak ditemukan atau tidak aktif dalam room ini"})
                 return
 
-            target_conn = await self.get_active_websocket(target_member.user_id)
+            target_conn = await self.get_active_websocket(client_id, target_member.user_id)
             if target_conn:
                 
                 await self.save_chat_history(
@@ -389,6 +406,8 @@ class ChatService:
                     agent_other_metrics=None,
                     agent_tools_call=None,
                     role="admin",
+                    client_id=client_id
+                    
                 )
                 
                 await target_conn.send_json({"success": True, "data": admin_message, "from": "admin", "room_id": str(room_id)})
@@ -397,12 +416,30 @@ class ChatService:
                 logger.info(f"Pesan admin dari {sender_id} ke room {room_id} berhasil dikirim.")
 
                 await self._send_message_to_associated_admins(
-                     room_id,
-                     {"sender_id": str(sender_id), "message": admin_message, "role": "admin", "room_id": str(room_id)},
-                     exclude_admin_id=sender_id
+                    client_id,
+                    room_id,
+                    {"sender_id": str(sender_id), "message": admin_message, "role": "admin", "room_id": str(room_id)},
+                    exclude_admin_id=sender_id
                 )
 
             else:
+                await self.save_chat_history(
+                    db,
+                    room_conversation_id=room_id,
+                    sender_id=sender_id,
+                    message=admin_message,
+                    agent_response_category=None,
+                    agent_response_latency=None,
+                    agent_total_tokens=None,
+                    agent_input_tokens=None,
+                    agent_output_tokens=None,
+                    agent_other_metrics=None,
+                    agent_tools_call=None,
+                    role="admin",
+                    client_id=client_id
+                    
+                )
+                
                 await websocket.send_json({"success": False, "error": "WebSocket target user tidak aktif"})
 
         except SQLAlchemyError as e:
@@ -413,7 +450,7 @@ class ChatService:
             logger.error(f"Error in handle_admin_message for room {room_id}: {e}", exc_info=True)
             await websocket.send_json({"success": False, "error": f"Terjadi kesalahan: {e}"})
             
-    async def handle_user_file(self, db: AsyncSession, websocket: WebSocket, data: dict, user_id: uuid.UUID, room_id: uuid.UUID, start_time: float):
+    async def handle_user_file(self, db: AsyncSession, websocket: WebSocket, data: dict, user_id: uuid.UUID, room_id: uuid.UUID, start_time: float, client_id: UUID):
         try:
             
             file_name = data.get("file_name")
@@ -456,10 +493,12 @@ class ChatService:
                 agent_output_tokens=None,
                 agent_other_metrics=None,
                 agent_tools_call=None,
-                role="user"
+                role="user",
+                client_id=client_id
             )
 
             await self._send_message_to_associated_admins(
+                client_id,
                 room_id,
                 {"sender_id": str(user_id), "message": "upload file | "+ unique_filename, "urlFile":file_url, "role": "user", "room_id": str(room_id)}
             )
@@ -484,7 +523,7 @@ class ChatService:
                 await websocket.send_json({"success": False, "error": "Chatbot tidak ditemukan di room ini."})
                 return
 
-            agent = call_customer_service_agent(str(chatbot_id), str(user_id), str(user_id))
+            agent = call_customer_service_agent(str(chatbot_id), str(user_id), str(user_id), client_id)
             agent_response = agent.run("""berikan 1 kalimat inti dari dokumen tersebut dan 
                                        tanyakan kepada user apa yang ingin diketahui dari dokumen ini.""", files=file_loc)
 
@@ -506,7 +545,8 @@ class ChatService:
                 agent_output_tokens=getattr(metrics, 'output_tokens', None),
                 agent_other_metrics=None,
                 agent_tools_call=getattr(agent_response, 'formatted_tool_calls', None),
-                role="chatbot"
+                role="chatbot",
+                client_id=client_id
             )
 
             await websocket.send_json({
@@ -518,6 +558,7 @@ class ChatService:
             })
 
             await self._send_message_to_associated_admins(
+                client_id,
                 room_id,
                 {"sender_id": str(chatbot_id), "message": content, "role": "chatbot", "room_id": str(room_id)}
             )
@@ -533,7 +574,7 @@ class ChatService:
             logger.exception(f"Gagal menangani file dari user {user_id} di room {room_id}")
             await websocket.send_json({"success": False, "error": f"Terjadi kesalahan saat memproses file: {e}"})
             
-    async def handle_user_audio(self, db: AsyncSession, websocket: WebSocket, data: dict, user_id: uuid.UUID, room_id: uuid.UUID, start_time: float):
+    async def handle_user_audio(self, db: AsyncSession, websocket: WebSocket, data: dict, user_id: uuid.UUID, room_id: uuid.UUID, start_time: float, client_id: UUID):
 
         file_name = data.get("file_name")
         mime_type = data.get("mime_type") 
@@ -620,15 +661,17 @@ class ChatService:
                 agent_output_tokens=None,
                 agent_other_metrics=None,
                 agent_tools_call=None,
-                role="user"
+                role="user",
+                client_id=client_id
             )
             
             await self._send_message_to_associated_admins(
+                client_id,
                 room_id,
                 {"sender_id": str(user_id), "message": "voice note | "+ content_translate, "urlFile":file_url, "role": "user", "room_id": str(room_id)}
             )
             
-            agent = call_customer_service_agent(str(chatbot_id), str(user_id), str(user_id))
+            agent = call_customer_service_agent(str(chatbot_id), str(user_id), str(user_id), client_id)
             
             agent_response = agent.run(content_translate)
             
@@ -648,7 +691,8 @@ class ChatService:
                 agent_input_tokens=getattr(getattr(agent_response.messages[-1], 'metrics', None), 'input_tokens', None),
                 agent_output_tokens=getattr(getattr(agent_response.messages[-1], 'metrics', None), 'output_tokens', None),
                 agent_total_tokens=getattr(getattr(agent_response.messages[-1], 'metrics', None), 'total_tokens', None),
-                agent_tools_call=getattr(agent_response, 'formatted_tool_calls', None)
+                agent_tools_call=getattr(agent_response, 'formatted_tool_calls', None),
+                client_id=client_id
             )
 
             await websocket.send_json({"success": True, "data": content, "from": "chatbot", "room_id": str(room_id)})
@@ -668,128 +712,143 @@ class ChatService:
         else:
             return "wav"
 
-    async def handle_disconnect(self, db: AsyncSession, user_id: uuid.UUID, role: str, room_id: Optional[uuid.UUID]):
-        logger.info(f"{role.capitalize()} {user_id} terputus.")
-        
-        await self.mark_offline(user_id, role)
+    async def handle_disconnect(self, db: AsyncSession, user_id: uuid.UUID, role: str, room_id: Optional[uuid.UUID], client_id: UUID):
+        logger.info(f"{role.capitalize()} {user_id} terputus untuk client {client_id}.")
+
+        # Mark offline di Redis per client
+        await self.mark_offline(user_id, role, client_id)
 
         if room_id:
             try:
+                # Update status offline hanya untuk member yang sesuai client_id
                 update_result = await db.execute(
                     update(Member)
-                    .where(Member.user_id == user_id or Member.room_conversation_id == room_id)
+                    .where(
+                        and_(
+                            Member.user_id == user_id,
+                            Member.room_conversation_id == room_id,
+                            Member.client_id == client_id   # <-- Filter tenant
+                        )
+                    )
                     .values(is_online=False)
                 )
                 await db.commit()
 
                 if update_result.rowcount > 0:
-                    logger.info(f"Status online member {user_id} di room {room_id} diperbarui menjadi False.")
+                    logger.info(f"✅ Status online member {user_id} di room {room_id} (client {client_id}) diperbarui menjadi False.")
                 else:
-                     logger.warning(f"Member {user_id} tidak ditemukan di room {room_id} dalam database saat disconnect.")
+                    logger.warning(f"⚠️ Member {user_id} tidak ditemukan di room {room_id} untuk client {client_id}.")
 
             except SQLAlchemyError as e:
-                logger.error(f"Error in handle_disconnect for user {user_id} in room {room_id}: {e}", exc_info=True)
+                logger.error(f"❌ Error in handle_disconnect for user {user_id} in room {room_id}, client {client_id}: {e}", exc_info=True)
                 await db.rollback()
         else:
-            logger.info(f"User {user_id} disconnected without an associated room_id.")
-    
-    async def mark_online(self, user_id: uuid.UUID, role: str):
-        key = f"online_{role}s" 
-        logger.debug(f"Marking {role} {user_id} as online in Redis.")
+            logger.info(f"User {user_id} disconnected without an associated room_id (client {client_id}).")
+
+    async def mark_online(self, user_id: uuid.UUID, role: str, client_id: UUID):
+        key = f"online:{client_id}:{role}s" 
+        logger.debug(f"[REDIS][SET] Marking {role} {user_id} as online in Redis.")
         await self.redis.sadd(key, str(user_id))
 
-    async def mark_offline(self, user_id: uuid.UUID, role: str):
-        key = f"online_{role}s"
-        logger.debug(f"Marking {role} {user_id} as offline in Redis.")
+    async def mark_offline(self, user_id: uuid.UUID, role: str, client_id: UUID):
+        key = f"online:{client_id}:{role}s" 
+        logger.debug(f"[REDIS][DEL] Marking {role} {user_id} as offline in Redis.")
         await self.redis.srem(key, str(user_id))
 
-    async def get_all_online(self, role: str) -> List[uuid.UUID]:
-        key = f"online_{role}s"
+    async def get_all_online(self, role: str, client_id: UUID) -> List[uuid.UUID]:
+        key = f"online:{client_id}:{role}s" 
         members = await self.redis.smembers(key)
-        logger.debug(f"Found {len(members)} online {role}s in Redis.")
+        logger.debug(f"[REDIS][GET] Found {len(members)} online {role}s in Redis.")
         return [uuid.UUID(m.decode() if isinstance(m, bytes) else m) for m in members]
+    
+    async def set_user_room_mapping(self, user_id: UUID, client_id: UUID, role: str, room_id: Optional[UUID] = None, ttl: int = 3600):
+        key = f"{role}_room:{user_id}:{client_id}"
+        value = {
+            "room": str(room_id) if room_id else None,
+            "client": str(client_id)
+        }
+        logger.debug(f"[REDIS][SET] Menyimpan mapping {key} -> {value}")
+        await self.redis.set(key, json.dumps(value), ex=ttl)
+        
+    async def delete_user_room_mapping(self, user_id: UUID, client_id: UUID, role: str):
+        key = f"{role}_room:{user_id}:{client_id}"
+        logger.debug(f"[REDIS][DEL] Menghapus mapping {key}")
+        await self.redis.delete(key)
 
-    async def _send_message_to_associated_admins(self, room_id: uuid.UUID, message_data: Dict[str, Any], exclude_admin_id: Optional[uuid.UUID] = None):
-        logger.debug(f"Sending new message from room {room_id} to associated admins.")
+    async def _send_message_to_associated_admins(self, client_id: UUID, room_id: uuid.UUID, message_data: Dict[str, Any], exclude_admin_id: Optional[uuid.UUID] = None):
+        logger.debug(f"Sending new message from room {room_id} to associated admins in client {client_id}.")
         try:
-            for admin_user_id in self.active_websockets.keys():
+            for admin_user_id, ws_conn in self.active_websockets.get(client_id, {}).items():
                 if exclude_admin_id and admin_user_id == exclude_admin_id:
                     continue
 
-                room_in_redis = await self.redis.get(f"admin_room:{str(admin_user_id)}")
+                room_in_redis = await self.redis.get(f"admin_room:{str(client_id)}:{str(admin_user_id)}")
                 if room_in_redis != str(room_id):
                     continue
 
-                admin_ws = await self.get_active_websocket(admin_user_id)
-                if admin_ws:
-                    try:
-                        message_data_to_send = message_data.copy()
-                        message_data_to_send["type"] = "room_message"
-                        await admin_ws.send_json(message_data_to_send)
-                        logger.debug(f"Sent message from room {room_id} to associated admin {admin_user_id}.")
-                    except Exception as e:
-                        logger.error(f"Gagal mengirim pesan ke admin {admin_user_id} yang diasosiasikan dengan room {room_id}: {e}", exc_info=True)
-
+                try:
+                    message_data_to_send = message_data.copy()
+                    message_data_to_send["type"] = "room_message"
+                    await ws_conn.send_json(message_data_to_send)
+                    logger.debug(f"Sent message from room {room_id} to admin {admin_user_id} in client {client_id}.")
+                except Exception as e:
+                    logger.error(f"Gagal mengirim pesan ke admin {admin_user_id}: {e}", exc_info=True)
         except Exception as e:
-            logger.error(f"Error sending message to associated admins for room {room_id}: {e}", exc_info=True)
+            logger.error(f"Error sending message to associated admins: {e}", exc_info=True)
 
-    async def broadcast_active_rooms(self, db: AsyncSession):
-        logger.info("Attempting to broadcast active rooms to online admins.")
-        try:
+    # async def broadcast_active_rooms(self, db: AsyncSession, client_id: UUID):
+    #     logger.info("Attempting to broadcast active rooms to online admins.")
+    #     try:
            
-            online_members_count_query = select(
-                Member.room_conversation_id,
-                sqlalchemy.func.count().label('online_members_count')
-            ).where(Member.is_online == True).group_by(Member.room_conversation_id).subquery()
+    #         online_members_count_query = select(
+    #             Member.room_conversation_id,
+    #             sqlalchemy.func.count().label('online_members_count')
+    #         ).where(Member.is_online == True).group_by(Member.room_conversation_id).subquery()
 
-            room_data_results = await db.execute(
-                select(
-                    RoomConversation.id,
-                    RoomConversation.status,
-                    online_members_count_query.c.online_members_count,
-                    RoomConversation.agent_active 
-                )
-                .outerjoin(online_members_count_query, RoomConversation.id == online_members_count_query.c.room_conversation_id)
-                .where(RoomConversation.status != "closed")
-            )
+    #         room_data_results = await db.execute(
+    #             select(
+    #                 RoomConversation.id,
+    #                 RoomConversation.status,
+    #                 online_members_count_query.c.online_members_count,
+    #                 RoomConversation.agent_active 
+    #             )
+    #             .outerjoin(online_members_count_query, RoomConversation.id == online_members_count_query.c.room_conversation_id)
+    #             .where(RoomConversation.status != "closed")
+    #         )
             
-            room_data_list = room_data_results.all()
+    #         room_data_list = room_data_results.all()
 
-            active_rooms_data = []
-            for room_id, status, online_count, agent_active_status in room_data_list:
-                num_members_online = online_count if online_count is not None else 0
-                active_rooms_data.append({
-                    "room_id": str(room_id),
-                    "status": status,
-                    "online_members": num_members_online,
-                    "agent_active": agent_active_status,
-                })
+    #         active_rooms_data = []
+    #         for room_id, status, online_count, agent_active_status in room_data_list:
+    #             num_members_online = online_count if online_count is not None else 0
+    #             active_rooms_data.append({
+    #                 "room_id": str(room_id),
+    #                 "status": status,
+    #                 "online_members": num_members_online,
+    #                 "agent_active": agent_active_status,
+    #             })
 
-            online_admin_uuids = await self.get_all_online("admin")
-            logger.debug(f"Found {len(online_admin_uuids)} online admins from Redis for active rooms broadcast.")
+    #         online_admin_uuids = await self.get_all_online("admin", client_id)
+    #         logger.debug(f"Found {len(online_admin_uuids)} online admins from Redis for active rooms broadcast.")
 
-            for admin_user_id in online_admin_uuids:
-                
-                admin_websocket = self.active_websockets.get(admin_user_id) 
-
-                if admin_websocket:
-                    try:
-                        await admin_websocket.send_json({
-                            "type": "active_rooms_update",
-                            "rooms": active_rooms_data
-                        })
-                        logger.debug(f"✅ Successfully sent active_rooms_update to admin {admin_user_id}")
-                    except Exception as e:
-                        
-                        logger.error(f"❌ Failed to send active_rooms_update to admin {admin_user_id}: {e}", exc_info=True)
-                else:
+    #         for admin_user_id, ws_conn in self.active_websockets.get(client_id, {}).items():
+    #             if admin_user_id in online_admin_uuids:
+    #                 try:
+    #                     await ws_conn.send_json({
+    #                         "type": "active_rooms_update",
+    #                         "rooms": active_rooms_data
+    #                     })
+    #                     logger.debug(f"✅ Sent active_rooms_update to admin {admin_user_id} (client {client_id})")
+    #                 except Exception as e:
+    #                     logger.error(f"❌ Failed to send to admin {admin_user_id}: {e}", exc_info=True)
+    #             else:
                     
-                    logger.warning(f"WebSocket for admin {admin_user_id} found online in Redis, but not active in this application state.")
+    #                 logger.warning(f"WebSocket for admin {admin_user_id} found online in Redis, but not active in this application state.")
 
-        except SQLAlchemyError as e:
-            logger.error(f"❌ Database error during broadcast_active_rooms: {e}", exc_info=True)
-        except Exception as e:
-            logger.error(f"❌ General error during broadcast_active_rooms: {e}", exc_info=True)
+    #     except SQLAlchemyError as e:
+    #         logger.error(f"❌ Database error during broadcast_active_rooms: {e}", exc_info=True)
+    #     except Exception as e:
+    #         logger.error(f"❌ General error during broadcast_active_rooms: {e}", exc_info=True)
     
     async def get_admin_ids_in_room(self, db: AsyncSession, room_id: UUID) -> List[UUID]:
         result = await db.execute(
