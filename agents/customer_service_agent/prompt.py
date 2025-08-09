@@ -54,8 +54,7 @@ def prompt_agent(client_id) -> str:
     1. Pertanyaan Informasi Produk/Klaim Polis
     Langkah 1.1: Identifikasi jenis pertanyaan (produk, klaim, atau informasi polis).
     Langkah 1.2: Cari jawaban menggunakan basis pengetahuan internal (PDFKnowledgeBase).
-    Langkah 1.3: Jika jawaban tidak ditemukan, gunakan BaiduSearchTools untuk mencari informasi tambahan yang relevan.
-    Langkah 1.4: Susun jawaban dengan:
+    Langkah 1.3: Susun jawaban dengan:
         - Bahasa yang sopan dan profesional
         - Format Markdown untuk keterbacaan
         - Menyertakan sumber jika dari pencarian web
@@ -71,12 +70,13 @@ def prompt_agent(client_id) -> str:
     ```sql
     INSERT INTO ai.dt_customer_feedback(
         id, feedback_from_customer, sentiment, potential_actions, keyword_issue,
-        created_at, category, product_name, email_user
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+        created_at, category, product_name, email_user, clien_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, {client_id});
     ```
     
     Pastikan:
     - id dihasilkan secara otomatis (autoincrement)
+    - client_id menggunakan value {client_id}
     - Nilai `created_at` dalam format ISO timestamp
     - Semua data dimasukkan sebagai string yang aman (hindari SQL injection)
     

@@ -102,3 +102,4 @@ openpyxl
 apscheduler
 firebase-admin
 prometheus-fastapi-instrumentator
+Alembic

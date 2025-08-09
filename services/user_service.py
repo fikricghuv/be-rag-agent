@@ -13,6 +13,7 @@ from pydantic import EmailStr
 from database.enums.user_role_enum import UserRole
 from exceptions.custom_exceptions import DatabaseException
 from uuid import UUID
+from typing import List
 
 logger = logging.getLogger(__name__)
 
@@ -83,21 +84,21 @@ class UserService:
             logger.error(f"[SERVICE][USER] SQLAlchemy Error (get_user_by_id): {e}", exc_info=True)
             raise DatabaseException("Failed to fetch user from the database")
 
-    def get_user_by_email(self, email: str, client_id: UUID) -> Optional[User]:
+    def get_all_user(self, client_id: UUID) -> List[User]:
         """
-        Mengambil user berdasarkan email dan client_id.
+        Mengambil semua user berdasarkan client_id.
         """
         try:
-            logger.info(f"[SERVICE][USER] Fetching user by email: {email}")
-            user = self.db.query(User).filter(User.email == email, User.client_id == client_id).first()
-            if user:
-                logger.info(f"[SERVICE][USER] Found user: {user.full_name or user.email}")
+            logger.info(f"[SERVICE][USER] Fetching all users for client_id: {client_id}")
+            users = self.db.query(User).filter(User.client_id == client_id).all()
+            if users:
+                logger.info(f"[SERVICE][USER] Found {len(users)} users.")
             else:
-                logger.warning(f"[SERVICE][USER] User with email {email} not found")
-            return user
+                logger.warning(f"[SERVICE][USER] No users found for client_id: {client_id}")
+            return users
         except SQLAlchemyError as e:
-            logger.error(f"[SERVICE][USER] SQLAlchemy Error (get_user_by_email): {e}", exc_info=True)
-            raise DatabaseException("Failed to fetch user by email")
+            logger.error(f"[SERVICE][USER] SQLAlchemy Error (get_all_user): {e}", exc_info=True)
+            raise DatabaseException("Failed to fetch all users")
 
     def update_user_profile(self, user_id: UUID, updates: dict, client_id: UUID) -> Optional[User]:
         """
@@ -111,8 +112,11 @@ class UserService:
                 return None
 
             for key, value in updates.items():
-                if hasattr(user, key):
+                if hasattr(user, key) and value is not None:
+                    if key == "role" and isinstance(value, str):
+                        value = UserRole(value)
                     setattr(user, key, value)
+
                 else:
                     logger.warning(f"[SERVICE][USER] Invalid field '{key}' ignored")
 
@@ -132,7 +136,7 @@ class UserService:
         """
         logger.info(f"[SERVICE][USER] Creating new user: {email}, role: {role.value}")
         try:
-            existing_user = self.db.query(User).filter(User.email == email, User.client_id == client_id).scalar_one_or_none()
+            existing_user = self.db.query(User).filter(User.email == email, User.client_id == client_id).first()
             if existing_user:
                 logger.warning(f"[SERVICE][USER] User with email {email} already exists")
                 raise HTTPException(
@@ -162,6 +166,38 @@ class UserService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Terjadi kesalahan saat menyimpan pengguna baru ke database."
             )
+    
+    def delete_user(self, user_id: UUID, client_id: UUID) -> None:
+        """
+        Menghapus user berdasarkan user_id dan client_id.
+        """
+        logger.info(f"[SERVICE][USER] Deleting user with ID: {user_id} for client_id: {client_id}")
+        try:
+            user = (
+                self.db.query(User)
+                .filter(User.id == user_id, User.client_id == client_id)
+                .first()
+            )
+
+            if not user:
+                logger.warning(f"[SERVICE][USER] User with ID {user_id} not found")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="User tidak ditemukan."
+                )
+
+            self.db.delete(user)
+            self.db.commit()
+            logger.info(f"[SERVICE][USER] User with ID {user_id} deleted successfully.")
+
+        except SQLAlchemyError as e:
+            self.db.rollback()
+            logger.error(f"[SERVICE][USER] SQLAlchemy Error (delete_user): {e}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Terjadi kesalahan saat menghapus pengguna dari database."
+            )
+
 
 def get_user_service(db: Session = Depends(config_db)) -> UserService:
     return UserService(db)

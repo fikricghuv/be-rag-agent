@@ -3,6 +3,7 @@ from uuid import UUID
 from datetime import datetime
 from typing import Optional
 from database.enums.user_role_enum import UserRole
+from typing import List
 
 class CreateUserRequest(BaseModel):
     email: EmailStr
@@ -25,6 +26,7 @@ class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     is_active: Optional[bool] = None
     password: Optional[str] = None
+    role: Optional[UserRole] = None 
     
     class Config:
         from_attributes = True
@@ -34,3 +36,7 @@ class UserCreate(BaseModel):
     password: str = Field(..., min_length=8, example="S3cur3P@ssw0rd")
     full_name: Optional[str] = Field(None, example="John Doe")
     role: Optional[UserRole] = Field(UserRole.USER, example="user")
+
+class UserListResponse(BaseModel):
+    data: List[UserResponse]
+    total_users: int

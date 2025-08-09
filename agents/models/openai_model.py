@@ -1,11 +1,20 @@
 from agno.models.openai import OpenAIChat
 from core.settings import OPENAI_API_KEY
 
+# def openai_model(temperature=0.1, max_tokens=300) :
+#     openai_model = OpenAIChat(
+#         id='gpt-4o', 
+#         api_key=OPENAI_API_KEY,  
+#         temperature=temperature, 
+#         max_tokens=max_tokens,
+#         )
+#     return openai_model
+
 def openai_model(temperature=0.1, max_tokens=300) :
     openai_model = OpenAIChat(
-        id='gpt-4o', 
+        id='gpt-5', 
         api_key=OPENAI_API_KEY,  
-        temperature=temperature, 
-        max_tokens=max_tokens,
+        # temperature=temperature, 
+        # max_completion_tokens=max_tokens,
         )
     return openai_model

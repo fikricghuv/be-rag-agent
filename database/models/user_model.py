@@ -20,7 +20,7 @@ class User(Base):
     role = Column(
         Enum(UserRole, name='user_role_enum', create_type=True, native_enum=True),
         nullable=False,
-        default=UserRole.USER
+        default=UserRole.ADMIN
     )
 
     fcm_tokens = relationship("UserFCM", back_populates="user", cascade="all, delete-orphan")

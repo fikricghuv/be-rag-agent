@@ -75,3 +75,5 @@ pylint-report.log
 *.ipynb
 
 serviceAccountKey.json
+
+alembic.ini
