@@ -12,7 +12,8 @@ from .knowledge_base_config_model import KnowledgeBaseConfigModel
 from .notification_model import Notification
 from .user_activity_log_model import UserActivityLog
 from .user_model import User
+from .web_source_model import WebSourceModel
 
 __all__ = ["Client", "RoomConversation", "Member", "Chat", "UserIds", "Prompt", "FileModel",
            "CustomerFeedback", "CustomerInteraction", "Customer", "KnowledgeBaseConfigModel",
-           "Notification", "UserActivityLog", "User"]
+           "Notification", "UserActivityLog", "User", "WebSourceModel"]

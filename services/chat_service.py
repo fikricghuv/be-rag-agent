@@ -242,7 +242,7 @@ class ChatService:
             agent = call_customer_service_agent(str(chatbot_id), str(user_id), str(user_id), client_id)
             logger.debug(f"Running agent for message: {message}")
             agent_response = agent.run(message)
-
+            
             input_token = getattr(getattr(agent_response.messages[-1], 'metrics', None), 'input_tokens', None)
             output_token = getattr(getattr(agent_response.messages[-1], 'metrics', None), 'output_tokens', None)
             total_token = getattr(getattr(agent_response.messages[-1], 'metrics', None), 'total_tokens', None)

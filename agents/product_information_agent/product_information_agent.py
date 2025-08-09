@@ -60,7 +60,7 @@ product_information_agent = Agent(
         Membantu pelanggan memahami produk BRI INSURANCE serta konsep dasar asuransi dengan akurat, ramah, dan efisien.
     """),
 
-    knowledge=knowledge_base(**kb_config), 
+    knowledge=knowledge_base(), 
     # knowledge=knowledge_base_json(),
     search_knowledge=True,
     # add_context=True,

@@ -1,30 +1,22 @@
 from agno.agent import Agent
 from agno.tools.postgres import PostgresTools
+from agno.knowledge.combined import CombinedKnowledgeBase
 from agno.knowledge.pdf import PDFKnowledgeBase
+from agno.knowledge.website import WebsiteKnowledgeBase
 from agno.vectordb.pgvector import PgVector, SearchType
 from agno.tools.baidusearch import BaiduSearchTools
 from agno.tools.telegram import TelegramTools
 from agno.storage.postgres import PostgresStorage
 from agents.models.openai_model import openai_model
 from agents.models.gemini_model import gemini_model
-from core.settings import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, URL_DB_POSTGRES, SESSION_TABLE_NAME, KNOWLEDGE_TABLE_NAME, HOST, PORT, DB_NAME, USER_DB, PASSWORD_DB, SCHEMA_TABLE, OPENAI_API_KEY
+from core.settings import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, URL_DB_POSTGRES, SESSION_TABLE_NAME, KNOWLEDGE_TABLE_NAME, HOST, PORT, DB_NAME, USER_DB, PASSWORD_DB, SCHEMA_TABLE, OPENAI_API_KEY, KNOWLEDGE_WEB_TABLE_NAME, COMBINED_KNOWLEDGE_TABLE_NAME
 from agents.customer_service_agent.prompt import prompt_agent, get_customer_service_prompt_fields
 from agno.embedder.openai import OpenAIEmbedder
 from agno.models.openai import OpenAIChat
+from agents.tools.knowledge_base_tools import get_all_urls_from_db, create_combined_knowledge_base
 
 storage = PostgresStorage(table_name=SESSION_TABLE_NAME, db_url=URL_DB_POSTGRES)
 storage.upgrade_schema()
-
-knowledge_base = PDFKnowledgeBase(
-    path="app/resources/pdf_from_postgres",
-    vector_db=PgVector(
-        embedder=OpenAIEmbedder(),
-        table_name=KNOWLEDGE_TABLE_NAME,
-        db_url=URL_DB_POSTGRES,
-        search_type=SearchType.hybrid,
-        content_language="indonesian",
-    ),
-)
 
 postgres_tools = PostgresTools(
     host=HOST,
@@ -37,6 +29,10 @@ postgres_tools = PostgresTools(
 
 def call_customer_service_agent(agent_id, session_id, user_id, client_id):
     name_agent, description_agent = get_customer_service_prompt_fields(client_id)
+    
+    urls = get_all_urls_from_db(client_id)
+    
+    knowledge_base = create_combined_knowledge_base(urls)
     
     agent = Agent(
         name=name_agent,
@@ -61,5 +57,7 @@ def call_customer_service_agent(agent_id, session_id, user_id, client_id):
         markdown=True,
         debug_mode=True,
     )
+    
+    agent.knowledge.load(recreate=False)
     
     return agent

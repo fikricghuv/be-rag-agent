@@ -27,6 +27,7 @@ from api.endpoints.customer_profile_endpoint import router as customer_profile
 from api.endpoints.user_activity_log_endpoint import router as user_activity_log_endpoint
 from api.endpoints.notification_endpoint import router as notification_endpoint
 from api.endpoints.fcm_endpoint import router as fcm_endpoint
+from api.endpoints.website_sources_endpoint import router as web_source_endpoint
 from api.websocket.chat_ws import router as chat_ws
 
 app = FastAPI()
@@ -106,6 +107,7 @@ app.include_router(customer_profile)
 app.include_router(user_activity_log_endpoint)
 app.include_router(notification_endpoint)
 app.include_router(fcm_endpoint)
+app.include_router(web_source_endpoint)
 #Daftar route websocket
 app.include_router(chat_ws)
 

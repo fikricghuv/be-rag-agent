@@ -9,7 +9,6 @@ fastapi
 slowapi
 uvicorn
 python-multipart
-pypdf
 #gemini
 google-genai
 PyJWT
@@ -20,5 +19,8 @@ lancedb
 baidusearch
 pycountry
 greenlet
-
+# migration
 Alembic
+# knowledge base 
+bs4
+pypdf

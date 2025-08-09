@@ -92,10 +92,11 @@ class FileService:
             filename_without_ext = file_to_delete.filename.rsplit('.', 1)[0]
 
             delete_vector_documents = """
-                DELETE FROM ai.ms_vector_documents
+                DELETE FROM ai.ms_vector_combined
                 WHERE name = :filename_without_ext
-                AND client_id = :client_id
+                
             """
+            #AND client_id = :client_id
             self.db.execute(
                 text(delete_vector_documents),
                 {"filename_without_ext": filename_without_ext, "client_id": str(client_id)}
@@ -139,15 +140,7 @@ class FileService:
             save_pdfs_locally([file.filename for file in pending_files])
             logger.info(f"[SERVICE][FILE] {len(pending_files)} PDFs saved locally for embedding.")
 
-            db_config = get_knowledge_base_config()
-            kb_config = KnowledgeBaseConfig(**db_config)
-            logger.info(f"[SERVICE][FILE] Knowledge Base Config: {kb_config}")
-
-            kb = knowledge_base(
-                chunk_size=kb_config.chunk_size,
-                overlap=kb_config.overlap,
-                num_documents=kb_config.num_documents,
-            )
+            kb = knowledge_base()
 
             kb.load(recreate=False, upsert=True, skip_existing=True)
             logger.info("[SERVICE][FILE] Knowledge base loaded and embeddings processed.")

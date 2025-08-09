@@ -103,3 +103,4 @@ apscheduler
 firebase-admin
 prometheus-fastapi-instrumentator
 Alembic
+bs4

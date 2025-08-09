@@ -6,7 +6,8 @@ from middleware.token_dependency import verify_access_token
 from schemas.user_schema import UserResponse, UserUpdate, UserCreate, UserListResponse
 from services.user_service import UserService, get_user_service
 from utils.exception_handler import handle_exceptions 
-from middleware.auth_client_dependency import get_authenticated_client
+from middleware.auth_client_dependency import get_authenticated_client    
+from typing import Dict, Any
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -29,8 +30,6 @@ async def create_new_user(
         role=user_data.role,
         client_id=client_id
     )
-    
-from typing import List, Dict, Any
 
 @router.get("/users/all", response_model=UserListResponse) 
 @handle_exceptions(tag="[USER]")
