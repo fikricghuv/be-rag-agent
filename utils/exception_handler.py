@@ -19,9 +19,10 @@ def handle_exceptions(tag="[API]"):
                 raise HTTPException(status_code=e.status_code, detail={"code": e.code, "message": e.message})
             except ServiceException as e:
                 logger.error(f"{tag} ServiceException: {e.message}", exc_info=True)
-                raise HTTPException(status_code=e.status_code, detail={"code": e.code, "message": e.message})
+                raise e 
             except Exception as e:
                 logger.error(f"{tag} Unexpected Error: {e}", exc_info=True)
                 raise HTTPException(status_code=500, detail={"code": "UNEXPECTED_ERROR", "message": str(e)})
         return wrapper
     return decorator
+

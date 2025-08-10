@@ -8,12 +8,12 @@ from core.config_db import config_db
 from datetime import datetime
 from typing import Optional
 from database.models.user_model import User
-import bcrypt
 from pydantic import EmailStr
 from database.enums.user_role_enum import UserRole
 from exceptions.custom_exceptions import DatabaseException
 from uuid import UUID
-from typing import List
+from utils.security_utils import hash_password
+from sqlalchemy import or_
 
 logger = logging.getLogger(__name__)
 
@@ -84,21 +84,42 @@ class UserService:
             logger.error(f"[SERVICE][USER] SQLAlchemy Error (get_user_by_id): {e}", exc_info=True)
             raise DatabaseException("Failed to fetch user from the database")
 
-    def get_all_user(self, client_id: UUID) -> List[User]:
+    def get_all_user(
+        self,
+        client_id: UUID,
+        offset: int = 0,
+        limit: int = 100,
+        search: Optional[str] = None
+    ) -> dict:
         """
-        Mengambil semua user berdasarkan client_id.
+        Mengambil semua user berdasarkan client_id dengan pagination dan search.
         """
         try:
-            logger.info(f"[SERVICE][USER] Fetching all users for client_id: {client_id}")
-            users = self.db.query(User).filter(User.client_id == client_id).all()
-            if users:
-                logger.info(f"[SERVICE][USER] Found {len(users)} users.")
-            else:
-                logger.warning(f"[SERVICE][USER] No users found for client_id: {client_id}")
-            return users
+            logger.info(f"[SERVICE][USER] Fetching users for client_id={client_id}, offset={offset}, limit={limit}, search={search}")
+
+            query = self.db.query(User).filter(User.client_id == client_id)
+
+            if search and search.strip():
+                search_pattern = f"%{search.strip()}%"
+                query = query.filter(
+                    or_(
+                        User.email.ilike(search_pattern),
+                        User.full_name.ilike(search_pattern)
+                    )
+                )
+
+            total = query.count()
+            users = query.offset(offset).limit(limit).all()
+            logger.info(f"[SERVICE][USER] Found {len(users)} users (total: {total}).")
+
+            return {
+                "data": users,
+                "total": total
+            }
+
         except SQLAlchemyError as e:
             logger.error(f"[SERVICE][USER] SQLAlchemy Error (get_all_user): {e}", exc_info=True)
-            raise DatabaseException("Failed to fetch all users")
+            raise DatabaseException("Failed to fetch users")
 
     def update_user_profile(self, user_id: UUID, updates: dict, client_id: UUID) -> Optional[User]:
         """
@@ -144,11 +165,10 @@ class UserService:
                     detail="Email sudah terdaftar."
                 )
 
-            hashed_pw = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
             new_user = User(
                 client_id=client_id,
                 email=email,
-                password=hashed_pw,
+                password=hash_password(password),
                 full_name=full_name,
                 role=role
             )

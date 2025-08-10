@@ -25,12 +25,17 @@ class ReportService:
         return df
     
     def _write_query_results(self, writer, query, params, headers):
-        result = self.db.execute(text(query), params)
+        result = self.db.execute(query, params)
         rows = result.fetchall()
         writer.writerow(headers)
         if rows:
             for row in rows:
                 writer.writerow(list(row))
+    
+    def _write_with_no_data(self, writer, headers):
+        """Menulis header dan baris pertama 'tidak ada report'."""
+        writer.writerow(headers)
+        writer.writerow(["tidak ada report"] + [""] * (len(headers) - 1))
 
     def report_csv(self, report_type: str, start_date: str, end_date: str, client_id: UUID) -> StreamingResponse:
         try:
@@ -39,7 +44,7 @@ class ReportService:
             writer = csv.writer(buffer)
 
             if report_type == "CUSTOMER_FEEDBACK":
-                query = """
+                query = text("""
                     SELECT 
                         feedback_from_customer, sentiment, potential_actions, keyword_issue,
                         category, product_name, email_user, created_at
@@ -47,9 +52,9 @@ class ReportService:
                     WHERE created_at BETWEEN :start_date AND :end_date
                     AND client_id = :client_id
                     ORDER BY created_at ASC
-                """
+                """)
                 params = {"start_date": start_date, "end_date": end_date, "client_id": client_id}
-                result = self.db.execute(text(query), params)
+                result = self.db.execute(query, params)
                 rows = result.fetchall()
 
                 writer.writerow([f"Report: Customer Feedback"])
@@ -60,32 +65,51 @@ class ReportService:
                     "Feedback", "Sentiment", "Potential Actions", "Keyword Issue",
                     "Category", "Product Name", "Email", "Created At"
                 ]
-                writer.writerow(headers)
-
+                
                 if rows:
+                    writer.writerow(headers)
                     for row in rows:
                         writer.writerow(list(row))
+                else:
+                    self._write_with_no_data(writer, headers)
 
             elif report_type == "CHAT_HISTORY":
                 query = text("""
-                    SELECT room_conversation_id, sender_id, message, role, created_at
+                    SELECT 
+                        room_conversation_id, 
+                        sender_id, 
+                        message, 
+                        role, 
+                        created_at, 
+                        agent_response_category, 
+                        agent_response_latency, 
+                        agent_total_tokens, 
+                        agent_input_tokens, 
+                        agent_output_tokens, 
+                        agent_tools_call
                     FROM ai.dt_chats
                     WHERE created_at BETWEEN :start_date AND :end_date
                     AND client_id = :client_id
                     ORDER BY created_at ASC
                 """)
                 params = {"start_date": start_date, "end_date": end_date, "client_id": client_id}
-                result = self.db.execute(text(query), params)
+                result = self.db.execute(query, params)
                 rows = result.fetchall()
                 
                 writer.writerow([f"Report: Chat History"])
                 writer.writerow([f"Date Range: {start_date} to {end_date}"])
                 writer.writerow([])
-                writer.writerow(["Room Conversation ID", "Sender ID", "Message", "Role", "Created At"])
+                
+                headers = ["Room Conversation ID", "Sender ID", "Message", "Role", "Created At", 
+                           "Agent_response_category", "Agent_response_latency", "Agent_total_tokens", 
+                           "Agent_input_tokens", "Agent_output_tokens", "Agent_tools_call"]
                 
                 if rows:
+                    writer.writerow(headers)
                     for row in rows:
                         writer.writerow(list(row))
+                else:
+                    self._write_with_no_data(writer, headers)
 
             elif report_type == "CUSTOMER_PROFILE":
                 query = text("""
@@ -99,21 +123,24 @@ class ReportService:
                 """)
                 
                 params = {"start_date": start_date, "end_date": end_date, "client_id": client_id}
-                result = self.db.execute(text(query), params)
+                result = self.db.execute(query, params)
                 rows = result.fetchall()
                 
                 writer.writerow([f"Report: Customer Profile"])
                 writer.writerow([f"Date Range: {start_date} to {end_date}"])
                 writer.writerow([])
-                writer.writerow([
+                headers = [
                     "Full Name", "Email", "Phone Number",
                     "Customer Type", "Registration Date", "Last Activity", "Address",
                     "City", "Country", "Is Active", "Created At", "Updated At"
-                ])
+                ]
                 
                 if rows:
+                    writer.writerow(headers)
                     for row in rows:
                         writer.writerow(list(row))
+                else:
+                    self._write_with_no_data(writer, headers)
 
             elif report_type == "MOST_QUESTION":
                 query = text("""
@@ -127,17 +154,20 @@ class ReportService:
                 """)
                 
                 params = {"start_date": start_date, "end_date": end_date, "client_id": client_id}
-                result = self.db.execute(text(query), params)
+                result = self.db.execute(query, params)
                 rows = result.fetchall()
                 
                 writer.writerow([f"Report: Category Frequency"])
                 writer.writerow([f"Date Range: {start_date} to {end_date}"])
                 writer.writerow([])
-                writer.writerow(["Category", "Frequency"])
+                headers = ["Category", "Frequency"]
                 
                 if rows:
+                    writer.writerow(headers)
                     for row in rows:
                         writer.writerow(list(row))
+                else:
+                    self._write_with_no_data(writer, headers)
 
             elif report_type == "CUSTOMER_INTERACTION":
                 query = text("""
@@ -154,26 +184,29 @@ class ReportService:
                 """)
                 
                 params = {"start_date": start_date, "end_date": end_date, "client_id": client_id}
-                result = self.db.execute(text(query), params)
+                result = self.db.execute(query, params)
                 rows = result.fetchall()
                 
                 writer.writerow([f"Report: Customer Interactions"])
                 writer.writerow([f"Date Range: {start_date} to {end_date}"])
                 writer.writerow([])
-                writer.writerow([
+                headers = [
                     "ID", "Conversation ID", "Customer ID", "Start Time", "End Time", "Duration (s)",
                     "Channel", "Initial Query", "Total Messages", "Is Handoff",
                     "Agent ID", "Agent Name", "Conversation Status", "Detected Intent", "Main Topic",
                     "Keywords Extracted", "Sentiment Score", "Product", "Feedback ID",
                     "Feedback Score", "Feedback Comment", "Feedback Submitted", "Created At"
-                ])
+                ]
                 
                 if rows:
-                    for row in result:
+                    writer.writerow(headers)
+                    for row in rows:
                         row_data = list(row)
                         if isinstance(row_data[15], list):
                             row_data[15] = ", ".join(row_data[15]) 
                         writer.writerow(row_data)
+                else:
+                    self._write_with_no_data(writer, headers)
 
             elif report_type == "ALL_DATA":
                 output = BytesIO()
@@ -187,7 +220,7 @@ class ReportService:
                         df = self._remove_timezone(df)
 
                         if df.empty:
-                            df = pd.DataFrame(columns=headers)
+                            df = pd.DataFrame([[ "tidak ada report" ] + [""] * (len(headers) - 1)], columns=headers)
 
                         df.to_excel(writer, sheet_name=sheet_name, startrow=3, index=False)
                         ws = writer.book[sheet_name]

@@ -8,7 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from database.models.upload_file_model import FileModel
 from core.config_db import config_db
 from utils.save_file_from_postgres_utils import save_pdfs_locally, delete_pdfs_locally
-from agents.tools.knowledge_base_tools import knowledge_base
+from agents.tools.knowledge_base_tools import pdf_knowledge_base
 from schemas.knowledge_base_config_schema import KnowledgeBaseConfig
 from utils.get_knowledge_base_param_utils import get_knowledge_base_config
 from exceptions.custom_exceptions import DatabaseException, ServiceException
@@ -140,7 +140,7 @@ class FileService:
             save_pdfs_locally([file.filename for file in pending_files])
             logger.info(f"[SERVICE][FILE] {len(pending_files)} PDFs saved locally for embedding.")
 
-            kb = knowledge_base()
+            kb = pdf_knowledge_base()
 
             kb.load(recreate=False, upsert=True, skip_existing=True)
             logger.info("[SERVICE][FILE] Knowledge base loaded and embeddings processed.")

@@ -36,7 +36,7 @@ class AuthService:
             )
         except Exception as e:
             logger.error(f"[SERVICE][AUTH] Failed to generate user ID: {e}", exc_info=True)
-            raise DatabaseException("FAILED_TO_GENERATE_USER_ID", "Failed to generate user ID")
+            raise DatabaseException("Failed to generate user ID", "FAILED_TO_GENERATE_USER_ID")
 
     def generate_access_token(self, user_id: str, expires_delta: timedelta = timedelta(minutes=30)) -> dict:
         try:
@@ -66,7 +66,7 @@ class AuthService:
             return jwt.encode(to_encode, SECRET_KEY_ADMIN, algorithm=ALGORITHM)
         except Exception as e:
             logger.error(f"[SERVICE][AUTH] Failed to generate refresh token: {e}", exc_info=True)
-            raise ServiceException("REFRESH_TOKEN_ERROR", "Failed to generate refresh token")
+            raise ServiceException("Failed to generate refresh token", 401, "REFRESH_TOKEN_ERROR")
 
     def login_user(self, email: str, password: str) -> dict:
         try:
@@ -79,7 +79,7 @@ class AuthService:
 
             if not verify_password(password, user.password):
                 logger.warning(f"[SERVICE][AUTH] Invalid password for email: {email}")
-                raise ServiceException("INVALID_PASSWORD", "Invalid email or password", status_code=401)
+                raise ServiceException(code="INVALID_PASSWORD", message="Invalid email or password", status_code=401)
 
             access_data = self.generate_access_token(user.id)
             refresh_token = self.generate_refresh_token(user.id)
@@ -93,38 +93,11 @@ class AuthService:
             raise e
         except Exception as e:
             logger.error(f"[SERVICE][AUTH] Login failed: {e}", exc_info=True)
-            raise ServiceException("LOGIN_ERROR", "Unexpected error during login")
-
-    def create_user(self, request: CreateUserRequest) -> UserResponse:
-        try:
-            logger.info(f"[SERVICE][AUTH] Creating user with email={request.email}")
-            existing_user = self.db.query(User).filter(User.email == request.email).first()
-            if existing_user:
-                raise ServiceException("EMAIL_EXISTS", "Email already registered", status_code=400)
-
-            new_user = User(
-                email=request.email,
-                password=hash_password(request.password),
-                full_name=request.full_name,
-                role=request.role,
-                client_id=request.client_id
+            raise ServiceException(
+                message="Unexpected error during login",
+                status_code=500,
+                code="LOGIN_ERROR"
             )
-            self.db.add(new_user)
-            self.db.commit()
-            self.db.refresh(new_user)
 
-            return UserResponse(
-                id=new_user.id,
-                email=new_user.email,
-                full_name=new_user.full_name,
-                is_active=new_user.is_active,
-                created_at=new_user.created_at
-            )
-        except ServiceException as e:
-            raise e
-        except Exception as e:
-            logger.error(f"[SERVICE][AUTH] Failed to create user: {e}", exc_info=True)
-            raise DatabaseException("CREATE_USER_FAILED", "Failed to create user")
-    
 def get_auth_service(db: Session = Depends(config_db)):
     return AuthService(db)

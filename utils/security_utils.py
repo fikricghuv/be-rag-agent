@@ -1,5 +1,7 @@
 from passlib.context import CryptContext
+import logging
 
+logger = logging.getLogger(__name__)
 # Inisialisasi context bcrypt
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -26,4 +28,5 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     Returns:
         bool: True jika cocok, False jika tidak.
     """
+    logger.warning(f"[SERVICE][AUTH] Verify pass: {plain_password} and {hashed_password}")
     return pwd_context.verify(plain_password, hashed_password)

@@ -566,7 +566,7 @@ class ChatHistoryService:
         try:
             logger.info(f"Getting daily average latency for client_id={client_id}")
 
-            end_date = datetime.now().date()
+            end_date = datetime.combine(datetime.now().date(), datetime.max.time())
             start_date = end_date - timedelta(days=6)
 
             daily_latency_raw = (
@@ -610,6 +610,11 @@ class ChatHistoryService:
         """
         try:
             logger.info(f"Getting monthly average latency in seconds for client_id={client_id}")
+            
+            current_year = datetime.now().year
+            current_month = datetime.now().month
+            monthly_data = defaultdict(float)
+            
             monthly_latency_raw = (
                 self.db.query(
                     func.to_char(Chat.created_at, 'YYYY-MM').label('month'),
@@ -618,16 +623,13 @@ class ChatHistoryService:
                 .join(RoomConversation, RoomConversation.id == Chat.room_conversation_id)
                 .filter(
                     RoomConversation.client_id == client_id,
-                    Chat.agent_response_latency.isnot(None)
+                    Chat.agent_response_latency.isnot(None),
+                    func.extract('year', Chat.created_at) == current_year
                 )
                 .group_by('month')
                 .order_by('month')
                 .all()
             )
-
-            current_year = datetime.now().year
-            current_month = datetime.now().month
-            monthly_data = defaultdict(float)
 
             for i in range(1, current_month + 1):
                 month_str = f"{current_year}-{i:02d}"

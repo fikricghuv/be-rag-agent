@@ -10,9 +10,6 @@ from uuid import UUID
 from schemas.website_source_schema import WebsiteUrlPayload
 from database.models.web_source_model import WebSourceModel
 from core.config_db import config_db
-from agents.tools.knowledge_base_tools import knowledge_base
-from schemas.knowledge_base_config_schema import KnowledgeBaseConfig
-from utils.get_knowledge_base_param_utils import get_knowledge_base_config
 from exceptions.custom_exceptions import DatabaseException, ServiceException
 from schemas.website_source_schema import WebsiteKBInfo
 from datetime import datetime

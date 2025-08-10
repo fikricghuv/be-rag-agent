@@ -51,8 +51,6 @@ def knowledge_base_json ():
 
     return json_knowledge_base
 
-
-
 def get_all_urls_from_db(client_id: str):
     """Ambil semua URL dari database berdasarkan client_id."""
     db = next(config_db())
@@ -78,8 +76,9 @@ def create_website_knowledge_base(urls: List[str]) -> WebsiteKnowledgeBase:
 
 def create_combined_knowledge_base(urls: List[str]) -> CombinedKnowledgeBase:
     website_kb = create_website_knowledge_base(urls)
+    pdf_kb = pdf_knowledge_base()
     return CombinedKnowledgeBase(
-        sources=[pdf_knowledge_base, website_kb],
+        sources=[pdf_kb, website_kb],
         vector_db=PgVector(
             table_name=COMBINED_KNOWLEDGE_TABLE_NAME,
             db_url=URL_DB_POSTGRES,

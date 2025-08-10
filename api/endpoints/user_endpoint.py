@@ -7,7 +7,8 @@ from schemas.user_schema import UserResponse, UserUpdate, UserCreate, UserListRe
 from services.user_service import UserService, get_user_service
 from utils.exception_handler import handle_exceptions 
 from middleware.auth_client_dependency import get_authenticated_client    
-from typing import Dict, Any
+from typing import Optional, Dict, Any
+from fastapi import Query
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -31,21 +32,28 @@ async def create_new_user(
         client_id=client_id
     )
 
-@router.get("/users/all", response_model=UserListResponse) 
+@router.get("/users/all", response_model=UserListResponse)
 @handle_exceptions(tag="[USER]")
 async def get_user_profile(
     user_service: UserService = Depends(get_user_service),
+    offset: int = Query(0, ge=0),
+    limit: int = Query(100, le=200),
+    search: Optional[str] = Query(None),
     access_token: str = Depends(verify_access_token),
     client_id: UUID = Depends(get_authenticated_client)
 ) -> Dict[str, Any]:
-    logger.info(f"[USER] Fetching all user profile")
-    users = user_service.get_all_user(client_id=client_id)
-    
-    total_users = len(users)
+    logger.info(f"[USER] Fetching all user profile (offset={offset}, limit={limit}, search={search})")
+
+    result = user_service.get_all_user(
+        client_id=client_id,
+        offset=offset,
+        limit=limit,
+        search=search
+    )
 
     return {
-        "data": users,
-        "total_users": total_users
+        "data": result["data"],
+        "total_users": result["total"]
     }
 
 @router.get("/users/{user_id}", response_model=UserResponse)
