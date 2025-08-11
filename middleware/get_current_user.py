@@ -4,12 +4,15 @@ from jose import JWTError, jwt
 from database.models.user_model import User
 from services.user_service import get_user_service, UserService
 from core.settings import SECRET_KEY_ADMIN, ALGORITHM
+from middleware.auth_client_dependency import get_authenticated_client  
+from uuid import UUID
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
-    user_service: UserService = Depends(get_user_service) 
+    user_service: UserService = Depends(get_user_service), 
+    client_id: UUID = Depends(get_authenticated_client)
 ) -> User:
     try:
         payload = jwt.decode(token, SECRET_KEY_ADMIN, algorithms=[ALGORITHM])
@@ -18,7 +21,7 @@ async def get_current_user(
         if user_id is None:
             raise HTTPException(status_code=401, detail="Invalid token")
 
-        user = user_service.get_user_by_id(user_id)
+        user = user_service.get_user_by_id(user_id, client_id)
 
         if user is None:
             raise HTTPException(status_code=401, detail="User not found")

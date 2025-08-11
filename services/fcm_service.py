@@ -49,7 +49,7 @@ class FCMService:
         response.raise_for_status()
         return response.json()["access_token"]
     
-    async def save_fcm_token(self, db: AsyncSession, user_id: UUID, token: str) -> None:
+    async def save_fcm_token(self, db: AsyncSession, user_id: UUID, token: str, client_id: UUID) -> None:
         try:
             if isinstance(user_id, User): 
                 user_id = user_id.id
@@ -60,7 +60,7 @@ class FCMService:
             fcm_record = existing.scalar_one_or_none()
 
             if not fcm_record:
-                new_token = UserFCM(user_id=user_id, token=token)
+                new_token = UserFCM(user_id=user_id, token=token, client_id=client_id)
                 db.add(new_token)
                 await db.commit()
         except SQLAlchemyError as e:

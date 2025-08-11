@@ -7,6 +7,7 @@ from database.models.user_model import User
 from middleware.get_current_user import get_current_user
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
+from middleware.auth_client_dependency import get_authenticated_client
 
 router = APIRouter()
 
@@ -28,8 +29,9 @@ async def send_fcm(
 async def register_fcm_token(
     data: FCMTokenRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    client_id: UUID = Depends(get_authenticated_client)
 ):
     fcm = FCMService(db)
-    await fcm.save_fcm_token(db=db, user_id=UUID(str(current_user.id)), token=data.token) 
+    await fcm.save_fcm_token(db=db, user_id=UUID(str(current_user.id)), token=data.token, client_id=client_id) 
     return {"success": True, "message": "FCM token disimpan"}
