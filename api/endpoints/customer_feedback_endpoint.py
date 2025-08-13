@@ -2,11 +2,9 @@
 import logging
 from fastapi import APIRouter, Depends, Query
 from typing import List, Optional
-from middleware.auth_client_dependency import get_authenticated_client
 from schemas.customer_feedback_response_schema import CustomerFeedbackResponse
 from services.customer_feedback_service import CustomerFeedbackService, get_customer_feedback_service
-from middleware.token_dependency import verify_access_token
-from middleware.log_user_activity import log_user_activity
+from middleware.token_dependency import verify_access_token_and_get_client_id
 from utils.exception_handler import handle_exceptions
 from uuid import UUID
 
@@ -22,8 +20,7 @@ async def get_feedbacks_endpoint(
     offset: int = Query(0, description="Number of items to skip"),
     limit: int = Query(100, description="Number of items to return per page", le=200),
     search: Optional[str] = Query(None, description="Search keyword on feedback"),
-    access_token: str = Depends(verify_access_token),
-    client_id: UUID = Depends(get_authenticated_client)
+    client_id: UUID = Depends(verify_access_token_and_get_client_id)
 ):
     logger.info(f"[FEEDBACK] Request: offset={offset}, limit={limit}, search='{search}'")
     feedbacks = customer_feedback_service.fetch_all_feedbacks(offset=offset, limit=limit, search=search, client_id=client_id)
@@ -34,8 +31,7 @@ async def get_feedbacks_endpoint(
 @handle_exceptions(tag="[FEEDBACK_TOTAL]")
 async def get_total_feedbacks_endpoint(
     customer_feedback_service: CustomerFeedbackService = Depends(get_customer_feedback_service),
-    access_token: str = Depends(verify_access_token),
-    client_id: UUID = Depends(get_authenticated_client)
+    client_id: UUID = Depends(verify_access_token_and_get_client_id)
 ):
     logger.info("[FEEDBACK_TOTAL] Request received.")
     total_feedbacks = customer_feedback_service.count_total_feedbacks(client_id=client_id)

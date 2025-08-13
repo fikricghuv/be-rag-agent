@@ -1,6 +1,6 @@
 import uuid
 import logging
-from fastapi import HTTPException, Depends
+from fastapi import Depends
 from jose import jwt
 from sqlalchemy.orm import Session
 from core.config_db import config_db
@@ -13,6 +13,7 @@ from utils.security_utils import hash_password, verify_password
 from exceptions.custom_exceptions import ServiceException, DatabaseException
 from datetime import datetime, timedelta, time, timezone
 from zoneinfo import ZoneInfo
+from uuid import UUID
 
 WIB = ZoneInfo("Asia/Jakarta")
 
@@ -76,7 +77,7 @@ class AuthService:
             
         except Exception as e:
             logger.error(f"[SERVICE][AUTH] Failed to generate access token: {e}", exc_info=True)
-            raise ServiceException("ACCESS_TOKEN_ERROR", str(e))
+            raise ServiceException("Failed to generate access token", 401, "ACCESS_TOKEN_ERROR")
 
     def generate_refresh_token(self, user_id: str, expires_delta: timedelta = timedelta(days=30)) -> str:
         try:
@@ -97,11 +98,11 @@ class AuthService:
 
             if not user:
                 logger.warning(f"[SERVICE][AUTH] Email not found: {email}")
-                raise ServiceException("INVALID_EMAIL", "Invalid email or password", status_code=401)
+                raise ServiceException("INVALID_EMAIL_OR_PASSWORD", 401, "Invalid email or password")
 
             if not verify_password(password, user.password):
                 logger.warning(f"[SERVICE][AUTH] Invalid password for email: {email}")
-                raise ServiceException(code="INVALID_PASSWORD", message="Invalid email or password", status_code=401)
+                raise ServiceException(code="INVALID_EMAIL_OR_PASSWORD", status_code=401, message="Invalid email or password")
 
             access_data = self.generate_access_token(user.id)
             refresh_token = self.generate_refresh_token(user.id)

@@ -50,9 +50,10 @@ class KnowledgeBaseService:
         
         if new_config.chunk_size < 100 or new_config.overlap < 0 or new_config.num_documents < 1:
             logger.warning(f"[SERVICE][KB] Invalid config params: {new_config}")
-            raise HTTPException(
+            raise ServiceException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid parameters for knowledge base config: chunk_size >= 100, overlap >= 0, num_documents >= 1"
+                detail="Invalid parameters for knowledge base config: chunk_size >= 100, overlap >= 0, num_documents >= 1",
+                code="INVALID_CONFIG_PARAM_KB"
             )
 
         try:

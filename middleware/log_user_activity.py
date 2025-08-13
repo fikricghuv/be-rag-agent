@@ -62,10 +62,16 @@ async def log_user_activity(request: Request, call_next: RequestResponseEndpoint
             response_json = json.loads(response_body.decode("utf-8")) if response_body else None
         except Exception:
             response_json = None
+            
+        client_id = getattr(request.state, "client_id", None)
+
+        if not client_id:
+            print("⚠️ Skip logging: client_id is missing")
+            return new_response
 
         log = UserActivityLog(
             user_id=user_id,
-            client_id = getattr(request.state, "client_id", None),
+            client_id=client_id,
             endpoint=str(request.url.path),
             method=request.method,
             request_data=request_json,

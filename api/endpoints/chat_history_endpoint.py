@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, Query, Path
 from typing import List, Optional
 from uuid import UUID
 from services.chat_history_service import ChatHistoryService, get_chat_history_service
-from middleware.token_dependency import verify_access_token
+from middleware.token_dependency import verify_access_token_and_get_client_id
 from schemas.chat_history_schema import ChatHistoryResponse, UserHistoryResponse, PaginatedChatHistoryResponse
 from utils.exception_handler import handle_exceptions
 from middleware.auth_client_dependency import get_authenticated_client
@@ -20,8 +20,7 @@ async def read_all_chat_history_endpoint(
     offset: int = Query(0),
     limit: int = Query(100, le=200),
     search: Optional[str] = Query(None, description="Filter chat by message or sender_id"),
-    access_token: str = Depends(verify_access_token),
-    client_id: UUID = Depends(get_authenticated_client)
+    client_id: UUID = Depends(verify_access_token_and_get_client_id)
 ):
     logger.info(f"[HISTORY][ALL] Fetching all chat history with offset={offset}, limit={limit}, search={search}")
     return chat_history_service.get_all_chat_history(offset=offset, limit=limit, search=search, client_id=client_id)
@@ -53,8 +52,7 @@ async def get_user_history_by_room_id_endpoint(
     chat_history_service: ChatHistoryService = Depends(get_chat_history_service),
     offset: int = Query(0),
     limit: int = Query(100, le=200),
-    access_token: str = Depends(verify_access_token),
-    client_id: UUID = Depends(get_authenticated_client) 
+    client_id: UUID = Depends(verify_access_token_and_get_client_id) 
 ):
     logger.info(f"[HISTORY][ROOM_ID] Fetching chat history for room_id={room_id}, offset={offset}, limit={limit}")
     result = chat_history_service.get_user_chat_history_by_room_id(room_id, offset=offset, limit=limit, client_id=client_id)

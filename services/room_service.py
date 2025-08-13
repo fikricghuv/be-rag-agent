@@ -12,7 +12,6 @@ from exceptions.custom_exceptions import DatabaseException
 from uuid import UUID
 
 logger = logging.getLogger(__name__)
-
 class RoomService:
     """
     Service class untuk mengelola operasi terkait room conversations.
@@ -40,7 +39,7 @@ class RoomService:
         
         except SQLAlchemyError as e:
             logger.error(f"[SERVICE][ROOM] SQLAlchemy Error on get_all_rooms: {e}", exc_info=True)
-            raise DatabaseException("Failed to fetch rooms from the database.")
+            raise DatabaseException("Failed to fetch rooms from the database.", "GET_ALL_ROOMS")
 
     def get_active_rooms(self, offset: int, limit: int, client_id: UUID, search: Optional[str] = None) -> List[RoomConversationResponse]:
         try:
@@ -119,7 +118,7 @@ class RoomService:
 
         except SQLAlchemyError as e:
             logger.error(f"[SERVICE][ROOM] SQLAlchemy Error (active rooms): {e}", exc_info=True)
-            raise DatabaseException("Failed to fetch active rooms from the database.")
+            raise DatabaseException("Failed to fetch active rooms from the database.", "GET_ACTIVE_ROOMS")
 
 
 def get_room_service(db: Session = Depends(config_db)) -> RoomService:

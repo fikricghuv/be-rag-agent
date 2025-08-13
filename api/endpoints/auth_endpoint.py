@@ -14,6 +14,8 @@ from database.models.user_model import User
 from utils.exception_handler import handle_exceptions
 import logging
 from uuid import UUID
+from middleware.token_dependency import verify_access_token_and_get_client_id
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -71,13 +73,12 @@ async def refresh_token_endpoint(
         expires_in=new_access_data["expires_at"]
     )
 
-
 @router.post("/auth/login", response_model=TokenResponse)
 @handle_exceptions(tag="[AUTH]")
 async def login_endpoint(
     request: LoginRequest,
     auth_service: AuthService = Depends(get_auth_service),
-    client_id: UUID = Depends(get_authenticated_client)
+    # client_id: UUID = Depends(verify_access_token_and_get_client_id)
 ):
     logger.info(f"[AUTH] Login attempt for email={request.email}")
     tokens = auth_service.login_user(email=request.email, password=request.password)
@@ -105,7 +106,6 @@ def create_new_user(
         role=user_data.role,
         client_id=client_id
     )
-
 
 @router.get("/auth/me", response_model=UserResponse)
 @handle_exceptions(tag="[AUTH]")

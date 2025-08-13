@@ -7,49 +7,47 @@ from agno.vectordb.lancedb import SearchType
 from agno.knowledge.json import JSONKnowledgeBase
 from database.models.web_source_model import WebSourceModel
 from core.config_db import config_db
-from typing import List
+from database.models.client_model import Client
+from typing import List, Optional
 from agno.knowledge.website import WebsiteKnowledgeBase
 from agno.knowledge.combined import CombinedKnowledgeBase
 from core.settings import (
     URL_DB_POSTGRES,
-    KNOWLEDGE_TABLE_NAME,
+    KNOWLEDGE_PDF_TABLE_NAME,
     KNOWLEDGE_WEB_TABLE_NAME,
-    COMBINED_KNOWLEDGE_TABLE_NAME,
+    COMBINED_KNOWLEDGE_TABLE_NAME
 )
 
-def pdf_knowledge_base ():
-    knowledge_base_pdf = PDFKnowledgeBase(
-        path="resources/pdf_from_postgres",
-        vector_db=PgVector(
-            # table_name=KNOWLEDGE_TABLE_NAME,
-            table_name=COMBINED_KNOWLEDGE_TABLE_NAME,
-            db_url=URL_DB_POSTGRES,
-            search_type=SearchType.hybrid,
-            embedder=OpenAIEmbedder()
-        ),
-        num_documents=5,
-    )
 
-    return knowledge_base_pdf
-
-def knowledge_base_json ():
-    json_knowledge_base = JSONKnowledgeBase(
-        path="resources/json_document_insurance",
-        vector_db=PgVector(
-            table_name="ms_vector_documents",
-            db_url=URL_DB_POSTGRES,
-            search_type=SearchType.vector,
-            embedder=OpenAIEmbedder(),
+# def knowledge_base_json ():
+#     json_knowledge_base = JSONKnowledgeBase(
+#         path="resources/json_document_insurance",
+#         vector_db=PgVector(
+#             table_name="ms_vector_documents",
+#             db_url=URL_DB_POSTGRES,
+#             search_type=SearchType.vector,
+#             embedder=OpenAIEmbedder(),
             
-        ),
-        chunking_strategy=RecursiveChunking(
-            # chunk_size=2000,
-            # overlap=200,
-        ),
-        num_documents=3,
-    )
+#         ),
+#         chunking_strategy=RecursiveChunking(
+#             # chunk_size=2000,
+#             # overlap=200,
+#         ),
+#         num_documents=3,
+#     )
 
-    return json_knowledge_base
+#     return json_knowledge_base
+
+# def create_combined_knowledge_base(urls: List[str], client_id) -> CombinedKnowledgeBase:
+#     website_kb = create_website_knowledge_base(urls)
+#     pdf_kb = create_pdf_knowledge_base()
+#     return CombinedKnowledgeBase(
+#         sources=[pdf_kb, website_kb],
+#         vector_db=PgVector(
+#             table_name=COMBINED_KNOWLEDGE_TABLE_NAME,
+#             db_url=URL_DB_POSTGRES,
+#         ),
+#     )
 
 def get_all_urls_from_db(client_id: str):
     """Ambil semua URL dari database berdasarkan client_id."""
@@ -63,24 +61,65 @@ def get_all_urls_from_db(client_id: str):
         return [rec.url for rec in url_records]
     finally:
         db.close()
+        
+def get_safe_subdomain(client_id: str) -> str:
+    """
+    Ambil subdomain client dari database berdasarkan client_id,
+    lalu ubah menjadi format aman untuk table_name atau path.
+    """
+    db = next(config_db())
+    try:
+        client = db.query(Client).filter(Client.id == client_id).first()
+        if not client:
+            raise ValueError(f"Client with id {client_id} not found")
+        
+        return client.subdomain.lower().replace(" ", "_")
+    finally:
+        db.close()
 
-def create_website_knowledge_base(urls: List[str]) -> WebsiteKnowledgeBase:
+def create_website_knowledge_base(client_name, urls: List[str]) -> WebsiteKnowledgeBase:
     return WebsiteKnowledgeBase(
         urls=urls,
         max_links=5,
         vector_db=PgVector(
-            table_name=KNOWLEDGE_WEB_TABLE_NAME,
+            table_name=KNOWLEDGE_WEB_TABLE_NAME+f"_{client_name}",
             db_url=URL_DB_POSTGRES,
         ),
     )
 
-def create_combined_knowledge_base(urls: List[str]) -> CombinedKnowledgeBase:
-    website_kb = create_website_knowledge_base(urls)
-    pdf_kb = pdf_knowledge_base()
+def create_pdf_knowledge_base(client_name: str):
+    
+    knowledge_base_pdf = PDFKnowledgeBase(
+        path=f"resources/pdf_from_postgres/{client_name}",
+        vector_db=PgVector(
+            table_name=KNOWLEDGE_PDF_TABLE_NAME + f"_{client_name}",
+            db_url=URL_DB_POSTGRES,
+            search_type=SearchType.hybrid,
+            embedder=OpenAIEmbedder()
+        ),
+        num_documents=5,
+    )
+
+    return knowledge_base_pdf
+
+def create_combined_knowledge_base(client_id: str, urls: Optional[List[str]] = None) -> CombinedKnowledgeBase:
+    
+    if urls is None:
+        urls = []
+        
+    name_subdomain = get_safe_subdomain(client_id)
+    
+    dynamic_table_name = COMBINED_KNOWLEDGE_TABLE_NAME + f"_{name_subdomain}"
+    
+    website_kb = create_website_knowledge_base(name_subdomain, urls)
+    pdf_kb = create_pdf_knowledge_base(name_subdomain)
+    
     return CombinedKnowledgeBase(
         sources=[pdf_kb, website_kb],
         vector_db=PgVector(
-            table_name=COMBINED_KNOWLEDGE_TABLE_NAME,
+            table_name=dynamic_table_name,
             db_url=URL_DB_POSTGRES,
         ),
     )
+
+

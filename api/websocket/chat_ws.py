@@ -27,20 +27,28 @@ async def chat_ws(
     user_id: str = None,
     role: str = None,
     api_key: str = None,
+    access_token: str = None,
     db: AsyncSession = Depends(get_db)
 ):
     start_time = time.time()
     user_uuid: Optional[UUID] = None
     room_uuid: Optional[UUID] = None
     client = None
-
+    await websocket.accept()
+    
     try:
-        logger.info(f"Token diterima: user_id={user_id}, role={role}, api-key={api_key}")
-
-        client = await get_authenticated_client_ws(db, websocket, api_key)
+        
+        logger.info(f"Token diterima: user_id={user_id}, role={role}, api-key={api_key}, acces_token={access_token}")
+        
+        if role == 'user':
+            logger.info(f"[WS] Mencoba otentikasi user_id={user_id} dengan api_key={api_key}")
+            client = await get_authenticated_client_ws(db, websocket, api_key, role, access_token=None)
+        
+        if role == 'admin':
+            logger.info(f"[WS] Mencoba otentikasi admin_id={user_id} dengan api_key={access_token}")
+            client = await get_authenticated_client_ws(db, websocket, api_key=None, role=role, access_token=access_token)
         
         if not client:
-            await websocket.accept()
             await websocket.send_json({"error": "Unauthorized WebSocket connection"})
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
@@ -48,13 +56,11 @@ async def chat_ws(
         client_id = client.id
         
         if not user_id or role not in {"user", "admin", "chatbot"}:
-            await websocket.accept()
             await websocket.send_json({"error": "user_id dan/atau role tidak valid"})
             await websocket.close(code=1008)
             return
 
         user_uuid = UUID(user_id)
-        await websocket.accept()
 
         ws_connection_count.inc()
         ws_active_users.inc()
@@ -68,6 +74,7 @@ async def chat_ws(
         await chat_service.mark_online(user_uuid, role, client_id)
 
         if role in {"user", "chatbot"}:
+            logger.info(f"[WS] Mencoba mendapatkan atau membuat room untuk user_id={user_uuid}, role={role}")
             room_uuid = await chat_service.find_or_create_room_and_add_member(db, user_uuid, role, client_id)
             
             online_admin_uuids = await chat_service.get_all_online("admin", client_id)

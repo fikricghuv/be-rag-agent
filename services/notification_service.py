@@ -11,8 +11,8 @@ from core.config_db import get_db
 from fastapi import Depends, HTTPException
 from api.websocket.redis_client import get_redis_client
 from sqlalchemy.ext.asyncio import AsyncSession
+from exceptions.custom_exceptions import DatabaseException, ServiceException
 
-# Inisialisasi logger
 logger = logging.getLogger(__name__)
 
 class NotificationService:
@@ -76,7 +76,6 @@ class NotificationService:
     async def mark_notification_as_read(self, notification_id: UUID, receiver_id: UUID, client_id: UUID):
         logger.info(f"[NOTIF][UPDATE] Marking notification {notification_id} as read for user_id={receiver_id}")
 
-        # Ambil notifikasi terlebih dahulu untuk validasi
         query = select(Notification).where(
             and_(
                 Notification.id == notification_id,
@@ -88,11 +87,11 @@ class NotificationService:
 
         if not notif:
             logger.warning(f"[NOTIF][UPDATE] Notification {notification_id} not found")
-            raise HTTPException(status_code=404, detail="Notification not found")
+            raise ServiceException(status_code=404, message="Notification not found", code="NOTIFICATION_NOT_FOUND")
 
         if not notif.is_broadcast and notif.receiver_id != receiver_id:
             logger.warning(f"[NOTIF][UPDATE] User {receiver_id} unauthorized to update notification {notification_id}")
-            raise HTTPException(status_code=403, detail="Unauthorized to update this notification")
+            raise ServiceException(status_code=403, message="Unauthorized to update this notification", code="UNAUTHORIZE_UPDATE_NOTIF")
 
         notif.is_read = True
         await self.db.commit()

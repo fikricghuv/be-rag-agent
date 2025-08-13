@@ -2,14 +2,16 @@
 from database.models.upload_file_model import FileModel
 from core.config_db import config_db
 import os
+from core.settings import KNOWLEDGE_WEB_TABLE_NAME
 
-def get_all_pdfs_from_db(filenames: list[str]):
+def get_all_pdfs_from_db(client_id, filenames: list[str]):
     """Ambil semua PDF dari database berdasarkan list filename."""
     db = next(config_db())
     try:
         pdf_records = (
             db.query(FileModel)
             .filter(FileModel.filename.in_(filenames))
+            .filter(FileModel.client_id == client_id)
             .all()
         )
         return [
@@ -23,14 +25,14 @@ def get_all_pdfs_from_db(filenames: list[str]):
     finally:
         db.close()
 
-def save_pdfs_locally(filenames: list[str]):
+def save_pdfs_locally(client_id, client_name, filenames: list[str]):
     """Simpan semua file PDF yang ada di DB ke folder lokal."""
-    base_dir = "resources/pdf_from_postgres"
+    base_dir = f"resources/pdf_from_postgres/{client_name}"
 
     if not os.path.exists(base_dir):
         os.makedirs(base_dir, exist_ok=True)
 
-    all_pdfs = get_all_pdfs_from_db(filenames)
+    all_pdfs = get_all_pdfs_from_db(client_id, filenames)
 
     if not all_pdfs:
         print("Tidak ada file PDF yang ditemukan di database.")
@@ -42,11 +44,11 @@ def save_pdfs_locally(filenames: list[str]):
             f.write(pdf["content"])
         print(f"✅ File {pdf['filename']} telah disimpan di {file_path}")
 
-def delete_pdfs_locally(filenames: list[str]):
+def delete_pdfs_locally(client_name, filenames: list[str]):
     """
     Menghapus file PDF di folder lokal hanya jika file tersebut sudah berstatus 'processed' di DB.
     """
-    base_dir = "resources/pdf_from_postgres"
+    base_dir = f"resources/pdf_from_postgres/{client_name}"
 
     if not os.path.exists(base_dir):
         print("📂 Folder lokal tidak ditemukan.")

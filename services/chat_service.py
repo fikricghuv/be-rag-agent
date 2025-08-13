@@ -12,7 +12,6 @@ import logging
 from datetime import timedelta
 from sqlalchemy.future import select
 from sqlalchemy import update, and_
-import sqlalchemy
 from openai import OpenAI
 from datetime import datetime
 from agno.media import File
@@ -30,6 +29,7 @@ from agents.audio_handler_agent.audio_agent import speech_to_text
 from services.notification_service import NotificationService
 from database.models.user_model import UserFCM, User
 from services.fcm_service import FCMService
+from exceptions.custom_exceptions import ServiceException, DatabaseException
 
 client = OpenAI()
 
@@ -142,7 +142,7 @@ class ChatService:
         except SQLAlchemyError as e:
             logger.error(f"Error in find_or_create_room_and_add_member: {e}", exc_info=True)
             await db.rollback()
-            raise
+            raise DatabaseException("FIND_OR_CREATE_ROOM", "Error in find_or_create_room_and_add_member.")
 
     async def save_chat_history(
        self,
@@ -182,7 +182,8 @@ class ChatService:
         except SQLAlchemyError as e:
             logger.error(f"Error saving chat history: {e}", exc_info=True)
             await db.rollback()
-            raise
+            raise DatabaseException("SAVE_CHAT_HISTORY", "Error saving chat history.")
+        
         return message
 
     async def handle_user_message(self, db: AsyncSession, websocket: WebSocket, data: dict, user_id: uuid.UUID, room_id: uuid.UUID, start_time: float, client_id: UUID):
@@ -311,7 +312,6 @@ class ChatService:
                     is_broadcast=True
                 )
 
-
         except Exception as e:
             logger.exception(f"Error handling user message in room {room_id}: {e}")
             await websocket.send_json({"success": False, "error": f"Terjadi kesalahan saat memproses pesan: {str(e)}"})
@@ -370,7 +370,8 @@ class ChatService:
             )
 
         except SQLAlchemyError as e:
-             logger.error(f"Error fetching members in handle_chatbot_message for room {room_id}: {e}", exc_info=True)
+            logger.error(f"Error fetching members in handle_chatbot_message for room {room_id}: {e}", exc_info=True)
+            raise DatabaseException("FETCH_MEMBER", "Error fetching members in handle_chatbot_message.") 
 
     async def handle_admin_message(self, db : AsyncSession, websocket: WebSocket, data: dict, sender_id: uuid.UUID, room_id: uuid.UUID, client_id: UUID):
         
@@ -446,9 +447,12 @@ class ChatService:
             logger.error(f"Error in handle_admin_message for room {room_id}: {e}", exc_info=True)
             await db.rollback()
             await websocket.send_json({"success": False, "error": f"Terjadi kesalahan database: {e}"})
+            raise DatabaseException("ADMIN_MESSAGE", "Error in handle_admin_message.") 
+        
         except Exception as e:
             logger.error(f"Error in handle_admin_message for room {room_id}: {e}", exc_info=True)
             await websocket.send_json({"success": False, "error": f"Terjadi kesalahan: {e}"})
+            raise ServiceException("ADMIN_MESSAGE", 400, "Error in handle admin message")
             
     async def handle_user_file(self, db: AsyncSession, websocket: WebSocket, data: dict, user_id: uuid.UUID, room_id: uuid.UUID, start_time: float, client_id: UUID):
         try:
@@ -573,6 +577,7 @@ class ChatService:
         except Exception as e:
             logger.exception(f"Gagal menangani file dari user {user_id} di room {room_id}")
             await websocket.send_json({"success": False, "error": f"Terjadi kesalahan saat memproses file: {e}"})
+            raise ServiceException("Error in handle file message from user.", 400, "FILE_MESSAGE") 
             
     async def handle_user_audio(self, db: AsyncSession, websocket: WebSocket, data: dict, user_id: uuid.UUID, room_id: uuid.UUID, start_time: float, client_id: UUID):
 
@@ -700,6 +705,7 @@ class ChatService:
         except Exception as e:
             logger.exception("Error processing voice note:")
             await websocket.send_json({"success": False, "error": f"Terjadi kesalahan saat memproses voice note: {e}"})
+            raise ServiceException("Error in handle file audio message from user", 400, "AUDIO_MESSAGE")
 
     def detect_audio_format(self, mime_type: str) -> str:
         """Convert MIME type to agno.Audio format string."""
@@ -715,19 +721,18 @@ class ChatService:
     async def handle_disconnect(self, db: AsyncSession, user_id: uuid.UUID, role: str, room_id: Optional[uuid.UUID], client_id: UUID):
         logger.info(f"{role.capitalize()} {user_id} terputus untuk client {client_id}.")
 
-        # Mark offline di Redis per client
         await self.mark_offline(user_id, role, client_id)
 
         if room_id:
             try:
-                # Update status offline hanya untuk member yang sesuai client_id
+                
                 update_result = await db.execute(
                     update(Member)
                     .where(
                         and_(
                             Member.user_id == user_id,
                             Member.room_conversation_id == room_id,
-                            Member.client_id == client_id   # <-- Filter tenant
+                            Member.client_id == client_id 
                         )
                     )
                     .values(is_online=False)
@@ -742,6 +747,7 @@ class ChatService:
             except SQLAlchemyError as e:
                 logger.error(f"❌ Error in handle_disconnect for user {user_id} in room {room_id}, client {client_id}: {e}", exc_info=True)
                 await db.rollback()
+                raise DatabaseException("HANDLE_DISCONNECT", "Error in handle_disconnect")
         else:
             logger.info(f"User {user_id} disconnected without an associated room_id (client {client_id}).")
 
@@ -795,60 +801,7 @@ class ChatService:
                     logger.error(f"Gagal mengirim pesan ke admin {admin_user_id}: {e}", exc_info=True)
         except Exception as e:
             logger.error(f"Error sending message to associated admins: {e}", exc_info=True)
-
-    # async def broadcast_active_rooms(self, db: AsyncSession, client_id: UUID):
-    #     logger.info("Attempting to broadcast active rooms to online admins.")
-    #     try:
-           
-    #         online_members_count_query = select(
-    #             Member.room_conversation_id,
-    #             sqlalchemy.func.count().label('online_members_count')
-    #         ).where(Member.is_online == True).group_by(Member.room_conversation_id).subquery()
-
-    #         room_data_results = await db.execute(
-    #             select(
-    #                 RoomConversation.id,
-    #                 RoomConversation.status,
-    #                 online_members_count_query.c.online_members_count,
-    #                 RoomConversation.agent_active 
-    #             )
-    #             .outerjoin(online_members_count_query, RoomConversation.id == online_members_count_query.c.room_conversation_id)
-    #             .where(RoomConversation.status != "closed")
-    #         )
-            
-    #         room_data_list = room_data_results.all()
-
-    #         active_rooms_data = []
-    #         for room_id, status, online_count, agent_active_status in room_data_list:
-    #             num_members_online = online_count if online_count is not None else 0
-    #             active_rooms_data.append({
-    #                 "room_id": str(room_id),
-    #                 "status": status,
-    #                 "online_members": num_members_online,
-    #                 "agent_active": agent_active_status,
-    #             })
-
-    #         online_admin_uuids = await self.get_all_online("admin", client_id)
-    #         logger.debug(f"Found {len(online_admin_uuids)} online admins from Redis for active rooms broadcast.")
-
-    #         for admin_user_id, ws_conn in self.active_websockets.get(client_id, {}).items():
-    #             if admin_user_id in online_admin_uuids:
-    #                 try:
-    #                     await ws_conn.send_json({
-    #                         "type": "active_rooms_update",
-    #                         "rooms": active_rooms_data
-    #                     })
-    #                     logger.debug(f"✅ Sent active_rooms_update to admin {admin_user_id} (client {client_id})")
-    #                 except Exception as e:
-    #                     logger.error(f"❌ Failed to send to admin {admin_user_id}: {e}", exc_info=True)
-    #             else:
-                    
-    #                 logger.warning(f"WebSocket for admin {admin_user_id} found online in Redis, but not active in this application state.")
-
-    #     except SQLAlchemyError as e:
-    #         logger.error(f"❌ Database error during broadcast_active_rooms: {e}", exc_info=True)
-    #     except Exception as e:
-    #         logger.error(f"❌ General error during broadcast_active_rooms: {e}", exc_info=True)
+            raise ServiceException("Error sending message to associated admins", status_code=400, code="SENDING_MESSAGE_TO_ADMIN")
     
     async def get_admin_ids_in_room(self, db: AsyncSession, room_id: UUID) -> List[UUID]:
         result = await db.execute(
@@ -865,11 +818,6 @@ class ChatService:
         token = result.scalar_one_or_none()
         logger.info(f"admin {user_id} dengan fcm {token} menerima notifikasi.")
         return token
-        
-    # async def get_all_admin_fcm_tokens(self, db: AsyncSession) -> list[str]:
-    #     stmt = select(UserFCM.token).join(User)
-    #     result = await db.execute(stmt)
-    #     return [row[0] for row in result.fetchall()]
     
     async def get_all_admin_fcm_tokens(self, db: AsyncSession) -> list[tuple[UUID, str]]:
         stmt = select(User.id, UserFCM.token).join(UserFCM).where(UserFCM.token.isnot(None))

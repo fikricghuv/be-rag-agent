@@ -2,10 +2,9 @@
 import logging
 from fastapi import APIRouter, Depends
 from services.knowledge_base_service import KnowledgeBaseService, get_knowledge_base_service
-from middleware.token_dependency import verify_access_token
+from middleware.token_dependency import verify_access_token_and_get_client_id
 from schemas.knowledge_base_config_schema import KnowledgeBaseConfig
 from utils.exception_handler import handle_exceptions 
-from middleware.auth_client_dependency import get_authenticated_client
 from uuid import UUID
 
 logging.basicConfig(level=logging.INFO)
@@ -17,8 +16,7 @@ router = APIRouter(tags=["knowledge-base"])
 @handle_exceptions(tag="[KNOWLEDGE-BASE]")
 async def get_knowledge_base_config_endpoint(
     knowledge_base_service: KnowledgeBaseService = Depends(get_knowledge_base_service),
-    access_token: str = Depends(verify_access_token),
-    client_id: UUID = Depends(get_authenticated_client)
+    client_id: UUID = Depends(verify_access_token_and_get_client_id)
 ):
     logger.info("[KNOWLEDGE-BASE] Fetching knowledge base config from DB.")
     return knowledge_base_service.get_knowledge_base_config_from_db(client_id=client_id)
@@ -28,8 +26,7 @@ async def get_knowledge_base_config_endpoint(
 async def update_knowledge_base_config_endpoint(
     new_config: KnowledgeBaseConfig,
     knowledge_base_service: KnowledgeBaseService = Depends(get_knowledge_base_service),
-    access_token: str = Depends(verify_access_token),
-    client_id: UUID = Depends(get_authenticated_client)
+    client_id: UUID = Depends(verify_access_token_and_get_client_id)
 ):
     logger.info(f"[KNOWLEDGE-BASE] Updating knowledge base config with: {new_config}")
     return knowledge_base_service.update_knowledge_base_config(new_config, client_id=client_id)

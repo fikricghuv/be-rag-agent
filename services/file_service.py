@@ -8,18 +8,27 @@ from sqlalchemy.exc import SQLAlchemyError
 from database.models.upload_file_model import FileModel
 from core.config_db import config_db
 from utils.save_file_from_postgres_utils import save_pdfs_locally, delete_pdfs_locally
-from agents.tools.knowledge_base_tools import pdf_knowledge_base
-from schemas.knowledge_base_config_schema import KnowledgeBaseConfig
-from utils.get_knowledge_base_param_utils import get_knowledge_base_config
+from agents.tools.knowledge_base_tools import create_combined_knowledge_base
 from exceptions.custom_exceptions import DatabaseException, ServiceException
-from sqlalchemy import text, desc
+from sqlalchemy import text, desc, inspect
 from uuid import UUID
+from database.models.client_model import Client
+from core.settings import SCHEMA_TABLE, KNOWLEDGE_PDF_TABLE_NAME
 
 logger = logging.getLogger(__name__)
 
 class FileService:
     def __init__(self, db: Session):
         self.db = db
+        
+    def _get_subdomain(self, client_id: uuid) -> str:
+        client = self.db.query(Client).filter(Client.id == client_id).first()
+        if not client:
+            raise ValueError(f"Client with id {client_id} not found")
+        
+        safe_name = client.subdomain.lower().replace(" ", "_")
+        
+        return safe_name
 
     def fetch_all_files(self, client_id: UUID) -> List[FileModel]:
         try:
@@ -43,10 +52,10 @@ class FileService:
             file_content = await file.read()
 
             if file.content_type not in ["application/pdf", "text/plain"]:
-                raise HTTPException(status_code=400, detail="Unsupported file type")
+                raise ServiceException(status_code=400, message="Unsupported file type", code="FILE_TYPE")
 
             if file.size and file.size > 10 * 1024 * 1024:
-                raise HTTPException(status_code=413, detail="File too large. Maximum size is 10MB")
+                raise ServiceException(status_code=413, detail="File too large. Maximum size is 10MB", code="FILE_SIZE")
 
             file_uuid = uuid.uuid4()
             new_file = FileModel(
@@ -90,24 +99,26 @@ class FileService:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
 
             filename_without_ext = file_to_delete.filename.rsplit('.', 1)[0]
+            table_name = self._get_subdomain(client_id)
 
-            delete_vector_documents = """
-                DELETE FROM ai.ms_vector_combined
-                WHERE name = :filename_without_ext
-                
-            """
-            #AND client_id = :client_id
-            self.db.execute(
-                text(delete_vector_documents),
-                {"filename_without_ext": filename_without_ext, "client_id": str(client_id)}
-            )
+            if file_to_delete.status != "pending":
+                delete_vector_documents = f"""
+                    DELETE FROM ai.{KNOWLEDGE_PDF_TABLE_NAME}_{table_name}
+                    WHERE name = :filename_without_ext
+                """
+                self.db.execute(
+                    text(delete_vector_documents),
+                    {"filename_without_ext": filename_without_ext}
+                )
+                logger.info(f"[SERVICE][FILE] Vector document deleted for: {filename_without_ext} (client_id: {client_id})")
+            else:
+                logger.info(f"[SERVICE][FILE] Skipping vector delete because file status is 'pending' for: {filename_without_ext}")
 
             file_to_delete.status = "inactive"
             self.db.commit()
-            logger.info(f"[SERVICE][FILE] File and vector document deleted for: {filename_without_ext} (client_id: {client_id})")
 
-            return {"message": "File and associated vectors deleted successfully"}
-        
+            return {"message": "File deleted successfully (vector delete skipped if status was pending)"}
+
         except HTTPException:
             self.db.rollback()
             raise
@@ -137,10 +148,13 @@ class FileService:
                     "status": "success"
                 }
             
-            save_pdfs_locally([file.filename for file in pending_files])
+            safe_name = self._get_subdomain(client_id)
+            
+            save_pdfs_locally(client_id, safe_name, [file.filename for file in pending_files])
             logger.info(f"[SERVICE][FILE] {len(pending_files)} PDFs saved locally for embedding.")
 
-            kb = pdf_knowledge_base()
+            # kb = create_pdf_knowledge_base(safe_name)
+            kb = create_combined_knowledge_base(client_id=client_id)
 
             kb.load(recreate=False, upsert=True, skip_existing=True)
             logger.info("[SERVICE][FILE] Knowledge base loaded and embeddings processed.")
@@ -154,7 +168,7 @@ class FileService:
 
             logger.info(f"[SERVICE][FILE] {updated_rows} files updated to 'processed' for client_id: {client_id}.")
             
-            delete_pdfs_locally([file.filename for file in pending_files])
+            delete_pdfs_locally(safe_name, [file.filename for file in pending_files])
             logger.info(f"[SERVICE][FILE] {len(pending_files)} PDFs removed locally after embedding.")
 
             return {
@@ -163,11 +177,11 @@ class FileService:
             }
 
         try:
-            return await asyncio.wait_for(_process(), timeout=60)  # Timeout 60 detik
+            return await asyncio.wait_for(_process(), timeout=60)
         except asyncio.TimeoutError:
             self.db.rollback()
             logger.error(f"[SERVICE][FILE] Embedding processing timed out for client_id: {client_id}.")
-            raise ServiceException(code="TIMEOUT_ERROR", message="Embedding processing exceeded 1 minute and was terminated.")
+            raise ServiceException(code="TIMEOUT_ERROR",status_code=408, message="Embedding processing exceeded 1 minute and was terminated.")
         except Exception as e:
             self.db.rollback()
             logger.error(f"[SERVICE][FILE] Error processing embedding for client {client_id}: {e}", exc_info=True)

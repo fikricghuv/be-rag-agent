@@ -2,7 +2,7 @@ import logging
 from typing import List
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
-from fastapi import Depends, status, HTTPException
+from fastapi import Depends, status
 from datetime import datetime
 from uuid import UUID
 from database.models.prompt_model import Prompt
@@ -11,7 +11,6 @@ from core.config_db import config_db
 from exceptions.custom_exceptions import DatabaseException, ServiceException
 
 logger = logging.getLogger(__name__)
-
 class PromptService:
     def __init__(self, db: Session):
         self.db = db
@@ -71,7 +70,7 @@ class PromptService:
 
         except ServiceException:
             self.db.rollback()
-            raise
+            raise ServiceException(code="UPDATE_PROMPT", message="Unexpected error occurred while updating prompt.")
         except SQLAlchemyError as e:
             self.db.rollback()
             logger.error(f"[SERVICE][PROMPT] DB error updating prompt '{prompt_id}': {e}", exc_info=True)

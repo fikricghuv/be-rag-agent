@@ -50,7 +50,7 @@ class UserActivityLogService:
 
         except SQLAlchemyError as e:
             logger.error(f"[SERVICE][ACTIVITY_LOG] SQLAlchemy Error: {e}", exc_info=True)
-            raise DatabaseException("Failed to fetch user activity logs from the database.")
+            raise DatabaseException("Failed to fetch user activity logs from the database.", "GET_ALL_USER_ACTIVITY")
 
     def get_logs_by_user_id(self, user_id: UUID, client_id: UUID, offset: int = 0, limit: int = 10) -> List[UserActivityLog]:
         """
@@ -100,7 +100,7 @@ class UserActivityLogService:
 
         except SQLAlchemyError as e:
             logger.error(f"[SERVICE][ACTIVITY_LOG] Failed to fetch logs for user {user_id}: {e}", exc_info=True)
-            raise DatabaseException("Failed to fetch user activity logs from the database.")
+            raise DatabaseException("Failed to fetch user activity logs from the database.", "GET_USER_ACTIVITY_BY_ID")
 
 def get_user_activity_log_service(db: Session = Depends(config_db)) -> UserActivityLogService:
     return UserActivityLogService(db)

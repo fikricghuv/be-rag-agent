@@ -51,7 +51,7 @@ class UserService:
 
         except SQLAlchemyError as e:
             logger.error(f"[SERVICE][USER] SQLAlchemy Error (monthly additions): {e}", exc_info=True)
-            raise DatabaseException("Failed to fetch monthly user additions")
+            raise DatabaseException("Failed to fetch monthly user additions", "GET_MONTHLY_USER")
 
     def get_total_users(self, client_id: UUID) -> int:
         """
@@ -66,7 +66,7 @@ class UserService:
             return total or 0
         except SQLAlchemyError as e:
             logger.error(f"[SERVICE][USER] SQLAlchemy Error (total users): {e}", exc_info=True)
-            raise DatabaseException("Failed to count total users")
+            raise DatabaseException(message="Failed to count total users")
 
     def get_user_by_id(self, user_id: UUID, client_id: UUID) -> Optional[User]:
         """
@@ -82,7 +82,7 @@ class UserService:
             return user
         except SQLAlchemyError as e:
             logger.error(f"[SERVICE][USER] SQLAlchemy Error (get_user_by_id): {e}", exc_info=True)
-            raise DatabaseException("Failed to fetch user from the database")
+            raise DatabaseException(message="Failed to fetch user from the database", code="GET_USER_BY_ID")
 
     def get_all_user(
         self,
@@ -119,7 +119,7 @@ class UserService:
 
         except SQLAlchemyError as e:
             logger.error(f"[SERVICE][USER] SQLAlchemy Error (get_all_user): {e}", exc_info=True)
-            raise DatabaseException("Failed to fetch users")
+            raise DatabaseException(message="Failed to fetch users", code="FETCH_USER")
 
     def update_user_profile(self, user_id: UUID, updates: dict, client_id: UUID) -> Optional[User]:
         """
@@ -149,7 +149,7 @@ class UserService:
         except SQLAlchemyError as e:
             self.db.rollback()
             logger.error(f"[SERVICE][USER] SQLAlchemy Error (update_user_profile): {e}", exc_info=True)
-            raise DatabaseException("Failed to update user profile")
+            raise DatabaseException(message="Failed to update user profile", code="UPDATE_PROFILE")
 
     def create_user(self, client_id: UUID, email: EmailStr, password: str, full_name: Optional[str] = None, role: UserRole = UserRole.USER) -> User:
         """
@@ -182,11 +182,8 @@ class UserService:
         except SQLAlchemyError as e:
             self.db.rollback()
             logger.error(f"[SERVICE][USER] SQLAlchemy Error (create_user): {e}", exc_info=True)
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Terjadi kesalahan saat menyimpan pengguna baru ke database."
-            )
-    
+            raise DatabaseException(message="Terjadi kesalahan saat menyimpan pengguna baru ke database.", code="CREATE_USER")
+        
     def delete_user(self, user_id: UUID, client_id: UUID) -> None:
         """
         Menghapus user berdasarkan user_id dan client_id.
@@ -213,11 +210,7 @@ class UserService:
         except SQLAlchemyError as e:
             self.db.rollback()
             logger.error(f"[SERVICE][USER] SQLAlchemy Error (delete_user): {e}", exc_info=True)
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Terjadi kesalahan saat menghapus pengguna dari database."
-            )
-
+            raise DatabaseException(message="Terjadi kesalahan saat menghapus pengguna dari database.", code="DELETE_USER")
 
 def get_user_service(db: Session = Depends(config_db)) -> UserService:
     return UserService(db)

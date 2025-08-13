@@ -161,32 +161,6 @@ class ChatHistoryService:
     def _get_escalation_counts_by_period(self, group_format: str, start_date: datetime, end_date: datetime, client_id: UUID) -> Dict[str, int]:
         """
         Helper private untuk mendapatkan jumlah eskalasi berdasarkan format grup periode.
-        """
-        try:
-            if self.db.bind.name == 'postgresql':
-                period_expr = func.to_char(Chat.created_at, group_format)
-            else:  
-                period_expr = func.strftime(group_format, Chat.created_at)
-
-            query_results = self.db.query(
-                period_expr.label("period"),
-                func.count(distinct(Chat.id)).label("total_escalations")
-            ).filter(
-                Chat.created_at >= start_date,
-                Chat.created_at <= end_date,
-                Chat.client_id == client_id,
-                self._get_escalation_condition()  
-            ).group_by("period").all()
-
-            return {row.period: row.total_escalations for row in query_results}
-        except SQLAlchemyError as e:
-            logger.error(f"SQLAlchemy Error getting escalation counts by period: {e}", exc_info=True)
-            raise e
-
-    def _get_escalation_counts_by_period(self, group_format: str, start_date: datetime, end_date: datetime, client_id: UUID) -> Dict[
-        str, int]:
-        """
-        Helper private untuk mendapatkan jumlah eskalasi berdasarkan format grup periode.
         Digunakan oleh metode weekly, monthly, yearly.
         """
         try:
@@ -209,7 +183,7 @@ class ChatHistoryService:
             return result_dict
         except SQLAlchemyError as e:
             logger.error(f"SQLAlchemy Error getting escalation counts by period: {e}", exc_info=True)
-            raise e
+            raise DatabaseException("GET_ESCALATION_COUNT_BY_PERIOD", "Failed to getting escalation counts by period.")
 
     def get_weekly_escalation_count(self, client_id: UUID) -> Dict[str, int]:
         """
@@ -242,7 +216,6 @@ class ChatHistoryService:
 
         sorted_keys = sorted(final_weekly_stats.keys())
         return {k: final_weekly_stats[k] for k in sorted_keys}
-
 
     def get_monthly_escalation_count(self, client_id: UUID) -> Dict[str, int]:
         today = datetime.now()
@@ -314,7 +287,7 @@ class ChatHistoryService:
             )
         except SQLAlchemyError as e:
             logger.error(f"SQLAlchemy error: {e}", exc_info=True)
-            raise e
+            raise DatabaseException("GET_ALL_CHAT_HISTORY", "Failed to getting all chat history.")
 
     def get_categories_by_frequency(self, client_id: UUID) -> List[Dict[str, Any]]:
         """
@@ -347,8 +320,8 @@ class ChatHistoryService:
             return result
         except SQLAlchemyError as e:
             logger.error(f"SQLAlchemy Error getting categories by frequency: {e}", exc_info=True)
-            raise e
-
+            raise DatabaseException("GET_CATEGORIES_BY_FREQ", "Failed to getting categories by frequency.")
+        
     def get_user_chat_history_by_user_id(self, user_id: UUID, offset: int, limit: int, client_id: UUID) -> dict:
         """
         Mengambil riwayat chat untuk user spesifik berdasarkan user_id, dengan pagination.
@@ -403,11 +376,10 @@ class ChatHistoryService:
 
         except SQLAlchemyError as e:
             logger.error(f"SQLAlchemy Error fetching chat history for room {user_id}: {e}", exc_info=True)
-            raise e 
+            raise DatabaseException("GET_CATEGORIES_BY_FREQ", "Error fetching chat history by user id.")
         except Exception as e:
             logger.error(f"Unexpected Error fetching chat history for room {user_id}: {e}", exc_info=True)
-            
-            raise SQLAlchemyError(f"Unexpected error: {e}")
+            raise DatabaseException("GET_CATEGORIES_BY_FREQ", "Error fetching chat history by user id.")
         
     def get_user_chat_history_by_room_id(self, room_id: UUID, offset: int, limit: int, client_id: UUID) -> dict:
         """
@@ -470,12 +442,11 @@ class ChatHistoryService:
         
         except SQLAlchemyError as e:
             logger.error(f"SQLAlchemy Error fetching chat history for room {room_id}: {e}", exc_info=True)
-            raise e 
+            raise DatabaseException("GET_CATEGORIES_BY_FREQ", "Error fetching chat history by room.")
         
         except Exception as e:
             logger.error(f"Unexpected Error fetching chat history for room {room_id}: {e}", exc_info=True)
-            
-            raise SQLAlchemyError(f"Unexpected error: {e}")
+            raise DatabaseException("GET_CATEGORIES_BY_FREQ", "Error fetching chat history by room.")
         
     def get_total_tokens_used(self, client_id: UUID) -> float:
         """
@@ -501,7 +472,7 @@ class ChatHistoryService:
 
         except SQLAlchemyError as e:
             logger.error(f"[SERVICE][TOKEN] SQLAlchemy Error calculating total tokens used for client {client_id}: {e}", exc_info=True)
-            raise DatabaseException("Failed to calculate total tokens used")
+            raise DatabaseException("GET_TOTAL_TOKEN_USED", "Error calculating total tokens used.")
     
     def get_total_conversations(self, client_id: UUID) -> int:
         """
@@ -520,7 +491,7 @@ class ChatHistoryService:
             return total_conversations if total_conversations is not None else 0
         except SQLAlchemyError as e:
             logger.error(f"SQLAlchemy Error getting total conversations: {e}", exc_info=True)
-            raise e
+            raise DatabaseException("GET_TOTAL_CONVERSATION", "Error calculating total conversations.")
 
     def get_monthly_conversations(self, client_id: UUID) -> Dict[str, int]:
         """
@@ -557,7 +528,7 @@ class ChatHistoryService:
             return sorted_result
         except SQLAlchemyError as e:
             logger.error(f"SQLAlchemy Error getting monthly total conversations: {e}", exc_info=True)
-            raise e
+            raise DatabaseException("GET_TOTAL_MONTHLY_CONVERSATION", "Error getting monthly total conversations.")
 
     def get_daily_average_latency_seconds(self, client_id: UUID):
         """
@@ -602,7 +573,7 @@ class ChatHistoryService:
 
         except SQLAlchemyError as e:
             logger.error(f"SQLAlchemy Error getting daily average latency in seconds: {e}", exc_info=True)
-            raise e
+            raise DatabaseException("GET_AVERAGE_LATENCY", "Error getting daily average latency in seconds.")
 
     def get_monthly_average_latency_seconds(self, client_id: UUID):
         """
@@ -644,7 +615,7 @@ class ChatHistoryService:
             return sorted_result
         except SQLAlchemyError as e:
             logger.error(f"SQLAlchemy Error getting monthly average latency in seconds: {e}", exc_info=True)
-            raise e
+            raise DatabaseException("GET_MONTHLY_AVERAGE_LATENCY", "Error getting monthly average latency in seconds.")
 
     def get_escalation_by_month(self, client_id: UUID):
         """
@@ -702,10 +673,10 @@ class ChatHistoryService:
 
         except SQLAlchemyError as e:
             logger.error(f"SQLAlchemy Error getting monthly escalation count: {e}", exc_info=True)
-            raise
+            raise DatabaseException("GET_TOTAL_ESCALATION_MONTH", "Error getting monthly escalation count.")
         except Exception as e:
             logger.error(f"An unexpected error occurred: {e}", exc_info=True)
-            raise
+            raise DatabaseException("GET_TOTAL_ESCALATION_MONTH", "Error getting monthly escalation count.")
 
     def get_monthly_tokens_used(self, client_id: UUID) -> Dict[str, float]:
         """
@@ -746,7 +717,7 @@ class ChatHistoryService:
 
         except SQLAlchemyError as e:
             logger.error(f"SQLAlchemy Error calculating monthly tokens used: {e}", exc_info=True)
-            raise
+            raise DatabaseException("GET_MONTHLY_TOKEN_USED", "Error calculating monthly tokens used.")
 
 
 def get_chat_history_service(db: Session = Depends(config_db)):

@@ -4,9 +4,8 @@ from typing import List, Optional
 from fastapi.encoders import jsonable_encoder
 from schemas.customer_interaction_schema import PaginatedCustomerInteractionResponse, CustomerInteractionResponse
 from services.customer_interaction_service import CustomerInteractionService, get_customer_interaction_service
-from middleware.token_dependency import verify_access_token
+from middleware.token_dependency import verify_access_token_and_get_client_id
 from utils.exception_handler import handle_exceptions
-from middleware.auth_client_dependency import get_authenticated_client
 from uuid import UUID
 
 logging.basicConfig(level=logging.INFO)
@@ -21,8 +20,7 @@ async def get_all_customer_interactions_endpoint(
     offset: int = Query(0),
     limit: int = Query(100, le=200),
     search: Optional[str] = Query(None),
-    access_token: str = Depends(verify_access_token),
-    client_id: UUID = Depends(get_authenticated_client)
+    client_id: UUID = Depends(verify_access_token_and_get_client_id)
 ):
     """
     Endpoint untuk mendapatkan semua interaksi customer dengan pagination.

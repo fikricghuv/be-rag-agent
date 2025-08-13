@@ -9,6 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from database.models.user_model import User, UserFCM
 from firebase_admin import messaging
+from exceptions.custom_exceptions import DatabaseException
 
 SCOPES = "https://www.googleapis.com/auth/firebase.messaging"
 
@@ -65,7 +66,7 @@ class FCMService:
                 await db.commit()
         except SQLAlchemyError as e:
             await db.rollback()
-            raise RuntimeError(f"Gagal menyimpan token FCM: {e}")
+            raise DatabaseException(code="SAVE_TOKEN_FCM", message="Failed to save token fcm.")
 
 
     async def send_message(self, fcm_token: str, title: str, body: str):

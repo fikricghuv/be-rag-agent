@@ -14,12 +14,22 @@ from exceptions.custom_exceptions import DatabaseException, ServiceException
 from schemas.website_source_schema import WebsiteKBInfo
 from datetime import datetime
 from agents.tools.knowledge_base_tools import create_combined_knowledge_base
+from database.models.client_model import Client
+from core.settings import KNOWLEDGE_WEB_TABLE_NAME
 
 logger = logging.getLogger(__name__)
-
 class WebSourceService:
     def __init__(self, db: Session):
         self.db = db
+    
+    def _get_subdomain(self, client_id: uuid) -> str:
+        client = self.db.query(Client).filter(Client.id == client_id).first()
+        if not client:
+            raise ValueError(f"Client with id {client_id} not found")
+        
+        safe_name = client.subdomain.lower().replace(" ", "_")
+        
+        return safe_name
 
     def fetch_all_links(self, client_id: UUID) -> List[WebsiteKBInfo]:
         try:
@@ -70,7 +80,7 @@ class WebSourceService:
             )
 
             if updated_rows == 0:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Link not found")
+                raise ServiceException(status_code=status.HTTP_404_NOT_FOUND, message="Link not found", code="UPDATE_STATUS")
 
             self.db.commit()
             logger.info(f"[SERVICE][WEB] Link {link_id} status updated to {status}")
@@ -98,8 +108,9 @@ class WebSourceService:
                 return {"message": "No pending links found for embedding.", "status": "success"}
 
             urls = [link.url for link in pending_links]
-            combined_kb = create_combined_knowledge_base(urls)
+            combined_kb = create_combined_knowledge_base(client_id, urls)
             combined_kb.load(recreate=False, upsert=True, skip_existing=True)
+            
             logger.info("[SERVICE][WEB] Web knowledge base loaded and embeddings processed.")
 
             updated_rows = (
@@ -118,7 +129,7 @@ class WebSourceService:
         except asyncio.TimeoutError:
             self.db.rollback()
             logger.error(f"[SERVICE][WEB] Embedding processing timed out for client_id: {client_id}.")
-            raise ServiceException(code="TIMEOUT_ERROR", message="Embedding processing exceeded 1 minute and was terminated.")
+            raise ServiceException(status_code=408, code="TIMEOUT_ERROR", message="Embedding processing exceeded 1 minute and was terminated.")
         except Exception as e:
             self.db.rollback()
             logger.error(f"[SERVICE][WEB] Error processing web link embedding for client {client_id}: {e}", exc_info=True)
@@ -131,6 +142,7 @@ class WebSourceService:
         """
         try:
             logger.info(f"[SERVICE][WEB] Deleting link UUID: {url_id} for client {client_id}")
+
             link = (
                 self.db.query(WebSourceModel)
                 .filter(WebSourceModel.id == url_id, WebSourceModel.client_id == client_id)
@@ -143,21 +155,33 @@ class WebSourceService:
 
             filename_without_ext = link.url
             logger.info(f"[SERVICE][WEB] Name url to delete: {filename_without_ext}")
-            
-            delete_vector_documents = """
-                DELETE FROM ai.ms_vector_combined
-                WHERE name = :filename_without_ext
-                
-            """
-            self.db.execute(
-                text(delete_vector_documents),
-                {"filename_without_ext": filename_without_ext, "client_id": str(client_id)}
-            )
-            link.status = "inactive"
 
+            table_name = self._get_subdomain(client_id)
+
+            if link.status != "pending":
+                delete_vector_documents = f"""
+                    DELETE FROM ai.{KNOWLEDGE_WEB_TABLE_NAME}_{table_name}
+                    WHERE name = :filename_without_ext
+                """
+                self.db.execute(
+                    text(delete_vector_documents),
+                    {"filename_without_ext": filename_without_ext}
+                )
+                logger.info(f"[SERVICE][WEB] Deleted vector document for: {filename_without_ext}")
+            else:
+                logger.info(f"[SERVICE][WEB] Skipping vector delete because status is 'pending'")
+
+            link.status = "inactive"
             self.db.commit()
+
             logger.info(f"[SERVICE][WEB] Successfully deleted link UUID: {url_id}")
             return {"message": "Link deleted successfully", "url_id": url_id}
+
+        except Exception as e:
+            logger.exception(f"[SERVICE][WEB] Error deleting link UUID: {url_id} - {str(e)}")
+            self.db.rollback()
+            raise
+
 
         except SQLAlchemyError as e:
             self.db.rollback()
