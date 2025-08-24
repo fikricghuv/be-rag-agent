@@ -27,13 +27,13 @@ class PromptService:
 
     def fetch_customer_service_prompt(self, client_id: UUID) -> List[Prompt]:
         try:
-            logger.info(f"[SERVICE][PROMPT] Fetching 'Customer Service Agent' prompt for client_id={client_id}")
+            logger.info(f"[SERVICE][PROMPT] Fetching prompt for client_id={client_id}")
             prompts = (
                 self.db.query(Prompt)
-                # .filter(Prompt.name.ilike("Customer Service Agent1"))
                 .filter(Prompt.client_id == client_id)
                 .all()
             )
+            logger.info(f"[SERVICE][PROMPT] Successfully fetched {prompts} customer service prompts.") 
             return prompts
         except SQLAlchemyError as e:
             logger.error(f"[SERVICE][PROMPT] DB error fetching CS prompt: {e}", exc_info=True)

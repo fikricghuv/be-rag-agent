@@ -15,7 +15,7 @@ from schemas.website_source_schema import WebsiteKBInfo
 from datetime import datetime
 from agents.tools.knowledge_base_tools import create_combined_knowledge_base
 from database.models.client_model import Client
-from core.settings import KNOWLEDGE_WEB_TABLE_NAME
+from core.settings import COMBINED_KNOWLEDGE_TABLE_NAME
 
 logger = logging.getLogger(__name__)
 class WebSourceService:
@@ -160,7 +160,7 @@ class WebSourceService:
 
             if link.status != "pending":
                 delete_vector_documents = f"""
-                    DELETE FROM ai.{KNOWLEDGE_WEB_TABLE_NAME}_{table_name}
+                    DELETE FROM ai.{COMBINED_KNOWLEDGE_TABLE_NAME}_{table_name}
                     WHERE name = :filename_without_ext
                 """
                 self.db.execute(

@@ -13,7 +13,7 @@ from exceptions.custom_exceptions import DatabaseException, ServiceException
 from sqlalchemy import text, desc, inspect
 from uuid import UUID
 from database.models.client_model import Client
-from core.settings import SCHEMA_TABLE, KNOWLEDGE_PDF_TABLE_NAME
+from core.settings import COMBINED_KNOWLEDGE_TABLE_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +103,7 @@ class FileService:
 
             if file_to_delete.status != "pending":
                 delete_vector_documents = f"""
-                    DELETE FROM ai.{KNOWLEDGE_PDF_TABLE_NAME}_{table_name}
+                    DELETE FROM ai.{COMBINED_KNOWLEDGE_TABLE_NAME}_{table_name}
                     WHERE name = :filename_without_ext
                 """
                 self.db.execute(

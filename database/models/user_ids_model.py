@@ -15,4 +15,5 @@ class UserIds(Base):
     client_id = Column(UUID(as_uuid=True), ForeignKey("ai.ms_clients.id", ondelete="CASCADE"), nullable=False)
     user_id = Column(String, unique=True, index=True)
     role = Column(Enum(UserRole), nullable=False)
+    ref_admin_id = Column(UUID(as_uuid=True), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)

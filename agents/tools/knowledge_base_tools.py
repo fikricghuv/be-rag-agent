@@ -1,9 +1,6 @@
 from agno.vectordb.pgvector import PgVector, SearchType
-from agno.embedder.ollama import OllamaEmbedder
 from agno.embedder.openai import OpenAIEmbedder
 from agno.knowledge.pdf import PDFKnowledgeBase
-from agno.document.chunking.recursive import RecursiveChunking
-from agno.vectordb.lancedb import SearchType
 from agno.knowledge.json import JSONKnowledgeBase
 from database.models.web_source_model import WebSourceModel
 from core.config_db import config_db
@@ -17,7 +14,7 @@ from core.settings import (
     KNOWLEDGE_WEB_TABLE_NAME,
     COMBINED_KNOWLEDGE_TABLE_NAME
 )
-
+from agno.document.chunking.agentic import AgenticChunking
 
 # def knowledge_base_json ():
 #     json_knowledge_base = JSONKnowledgeBase(
@@ -55,7 +52,7 @@ def get_all_urls_from_db(client_id: str):
     try:
         url_records = (
                 db.query(WebSourceModel)
-                .filter(WebSourceModel.status == 'pending', WebSourceModel.client_id == client_id)
+                .filter(WebSourceModel.status == 'processed', WebSourceModel.client_id == client_id)
                 .all()
             )
         return [rec.url for rec in url_records]
@@ -84,7 +81,10 @@ def create_website_knowledge_base(client_name, urls: List[str]) -> WebsiteKnowle
         vector_db=PgVector(
             table_name=KNOWLEDGE_WEB_TABLE_NAME+f"_{client_name}",
             db_url=URL_DB_POSTGRES,
+            search_type=SearchType.hybrid,
+            embedder=OpenAIEmbedder()
         ),
+        chunking_strategy=AgenticChunking(),
     )
 
 def create_pdf_knowledge_base(client_name: str):
@@ -97,7 +97,8 @@ def create_pdf_knowledge_base(client_name: str):
             search_type=SearchType.hybrid,
             embedder=OpenAIEmbedder()
         ),
-        num_documents=5,
+        num_documents=3,
+        chunking_strategy=AgenticChunking(),
     )
 
     return knowledge_base_pdf
@@ -119,7 +120,10 @@ def create_combined_knowledge_base(client_id: str, urls: Optional[List[str]] = N
         vector_db=PgVector(
             table_name=dynamic_table_name,
             db_url=URL_DB_POSTGRES,
+            search_type=SearchType.hybrid,
+            embedder=OpenAIEmbedder()
         ),
+        chunking_strategy=AgenticChunking(),
     )
 
 

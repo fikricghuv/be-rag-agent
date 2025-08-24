@@ -14,6 +14,9 @@ class Prompt(Base):
     name_agent = Column(String(255), nullable=True)
     description_agent = Column(Text, nullable=True)
     style_communication = Column(Text, nullable=False)
+    goal = Column(Text, nullable=True)
+    expected_output = Column(Text, nullable=True) 
+    prompt_system = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
-    prompt_system = Column(Text, nullable=True)
+    
