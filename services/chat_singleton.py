@@ -6,7 +6,9 @@ from typing import Dict
 from uuid import UUID
 from starlette.websockets import WebSocket
 
-active_websockets: Dict[UUID, Dict[UUID, WebSocket]] = {}
+# Pisahkan admin dan user/chatbot
+active_admin_websockets: Dict[UUID, Dict[UUID, WebSocket]] = {}
+active_user_websockets: Dict[UUID, Dict[UUID, WebSocket]] = {}
 
 chat_service_singleton: ChatService = None
 
@@ -16,6 +18,7 @@ def init_chat_service(db: AsyncSession):
         chat_service_singleton = ChatService(
             db=db,
             redis=redis_client,
-            active_websockets=active_websockets,
+            active_admin_websockets=active_admin_websockets,
+            active_user_websockets=active_user_websockets,
         )
     return chat_service_singleton
