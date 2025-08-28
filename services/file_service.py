@@ -156,7 +156,7 @@ class FileService:
             # kb = create_pdf_knowledge_base(safe_name)
             kb = create_combined_knowledge_base(client_id=client_id)
 
-            kb.load(recreate=False, upsert=True, skip_existing=True)
+            await kb.aload(recreate=False, upsert=True, skip_existing=True)
             logger.info("[SERVICE][FILE] Knowledge base loaded and embeddings processed.")
 
             updated_rows = (

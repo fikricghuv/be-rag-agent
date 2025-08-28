@@ -109,7 +109,7 @@ class WebSourceService:
 
             urls = [link.url for link in pending_links]
             combined_kb = create_combined_knowledge_base(client_id, urls)
-            combined_kb.load(recreate=False, upsert=True, skip_existing=True)
+            await combined_kb.aload(recreate=False, upsert=True, skip_existing=True)
             
             logger.info("[SERVICE][WEB] Web knowledge base loaded and embeddings processed.")
 
