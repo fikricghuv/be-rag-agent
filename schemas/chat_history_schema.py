@@ -26,19 +26,36 @@ class ChatHistoryResponse(BaseModel):
         "from_attributes": True
     }
 
+# class UserHistoryResponse(BaseModel):
+#     """
+#     Respons model untuk riwayat chat user spesifik.
+#     """
+#     success: bool
+#     room_id: UUID
+#     user_id: UUID
+#     total: int 
+#     history: List[ChatHistoryResponse] 
+
+#     model_config = {
+#         "from_attributes": True 
+#     }
+
 class UserHistoryResponse(BaseModel):
-    """
-    Respons model untuk riwayat chat user spesifik.
-    """
     success: bool
     room_id: UUID
+    user_id: Optional[UUID]
+    total: int
+    history: list[ChatHistoryResponse]
+    next_cursor: Optional[datetime.datetime]
+    
+class UserHistoryByIdResponse(BaseModel):
+    success: bool
+    room_id: Optional[UUID]
     user_id: UUID
-    total: int 
-    history: List[ChatHistoryResponse] 
+    total: int
+    history: list[ChatHistoryResponse]
+    next_cursor: Optional[datetime.datetime]
 
-    model_config = {
-        "from_attributes": True 
-    }
     
 class PaginatedChatHistoryResponse(BaseModel):
     total: int

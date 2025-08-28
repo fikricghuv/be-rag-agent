@@ -10,6 +10,7 @@ from database.models.room_conversation_model import RoomConversation
 from schemas.room_conversation_schema import RoomConversationResponse
 from exceptions.custom_exceptions import DatabaseException
 from uuid import UUID
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 class RoomService:
@@ -41,10 +42,89 @@ class RoomService:
             logger.error(f"[SERVICE][ROOM] SQLAlchemy Error on get_all_rooms: {e}", exc_info=True)
             raise DatabaseException("Failed to fetch rooms from the database.", "GET_ALL_ROOMS")
 
-    def get_active_rooms(self, offset: int, limit: int, client_id: UUID, search: Optional[str] = None) -> List[RoomConversationResponse]:
-        try:
-            logger.info(f"[SERVICE][ROOM] Fetching active rooms (offset={offset}, limit={limit}, search={search}, client_id={client_id})")
+    # def get_active_rooms(self, offset: int, limit: int, client_id: UUID, search: Optional[str] = None) -> List[RoomConversationResponse]:
+    #     try:
+    #         logger.info(f"[SERVICE][ROOM] Fetching active rooms (offset={offset}, limit={limit}, search={search}, client_id={client_id})")
 
+    #         latest_chat_subquery = (
+    #             self.db.query(
+    #                 Chat.room_conversation_id,
+    #                 func.max(Chat.created_at).label("latest_chat")
+    #             )
+    #             .join(RoomConversation, RoomConversation.id == Chat.room_conversation_id)
+    #             .filter(RoomConversation.client_id == client_id)
+    #             .group_by(Chat.room_conversation_id)
+    #             .subquery()
+    #         )
+
+    #         latest_message_subquery = (
+    #             self.db.query(
+    #                 Chat.room_conversation_id,
+    #                 Chat.message,
+    #                 Chat.created_at
+    #             )
+    #             .join(
+    #                 latest_chat_subquery,
+    #                 (Chat.room_conversation_id == latest_chat_subquery.c.room_conversation_id) &
+    #                 (Chat.created_at == latest_chat_subquery.c.latest_chat)
+    #             )
+    #             .subquery()
+    #         )
+
+    #         query = (
+    #             self.db.query(
+    #                 RoomConversation,
+    #                 latest_message_subquery.c.message.label("last_message"),
+    #                 latest_message_subquery.c.created_at.label("last_time_message")
+    #             )
+    #             .join(latest_message_subquery, RoomConversation.id == latest_message_subquery.c.room_conversation_id)
+    #             .filter(
+    #                 RoomConversation.status == 'open',
+    #                 RoomConversation.client_id == client_id
+    #             )
+    #         )
+
+    #         if search:
+    #             search_pattern = f"%{search.lower()}%"
+    #             query = query.filter(
+    #                 or_(
+    #                     func.lower(cast(RoomConversation.id, Text)).like(search_pattern),
+    #                     func.lower(RoomConversation.description).like(search_pattern),
+    #                     func.lower(latest_message_subquery.c.message).like(search_pattern)
+    #                 )
+    #             )
+
+    #         results = query.order_by(latest_message_subquery.c.created_at.desc())\
+    #                     .offset(offset)\
+    #                     .limit(limit)\
+    #                     .all()
+
+    #         response = [
+    #             RoomConversationResponse(
+    #                 id=room.id,
+    #                 name=getattr(room, "name", None),  # aman jika kolom tidak ada
+    #                 description=room.description,
+    #                 status=room.status,
+    #                 created_at=room.created_at,
+    #                 updated_at=room.updated_at,
+    #                 agent_active=room.agent_active,
+    #                 lastMessage=last_msg,
+    #                 lastTimeMessage=last_time
+    #             )
+    #             for room, last_msg, last_time in results
+    #         ]
+
+    #         logger.info(f"[SERVICE][ROOM] Fetched {len(response)} active rooms.")
+    #         return response
+
+    #     except SQLAlchemyError as e:
+    #         logger.error(f"[SERVICE][ROOM] SQLAlchemy Error (active rooms): {e}", exc_info=True)
+    #         raise DatabaseException("Failed to fetch active rooms from the database.", "GET_ACTIVE_ROOMS")
+
+    def get_active_rooms(
+        self, cursor: Optional[datetime], limit: int, client_id: UUID, search: Optional[str] = None
+    ) -> List[RoomConversationResponse]:
+        try:
             latest_chat_subquery = (
                 self.db.query(
                     Chat.room_conversation_id,
@@ -93,15 +173,20 @@ class RoomService:
                     )
                 )
 
-            results = query.order_by(latest_message_subquery.c.created_at.desc())\
-                        .offset(offset)\
-                        .limit(limit)\
-                        .all()
+            # cursor pagination: ambil data "lebih kecil" dari waktu terakhir (karena order DESC)
+            if cursor:
+                query = query.filter(latest_message_subquery.c.created_at < cursor)
 
-            response = [
+            results = (
+                query.order_by(latest_message_subquery.c.created_at.desc())
+                .limit(limit)
+                .all()
+            )
+
+            return [
                 RoomConversationResponse(
                     id=room.id,
-                    name=getattr(room, "name", None),  # aman jika kolom tidak ada
+                    name=getattr(room, "name", None),
                     description=room.description,
                     status=room.status,
                     created_at=room.created_at,
@@ -113,13 +198,9 @@ class RoomService:
                 for room, last_msg, last_time in results
             ]
 
-            logger.info(f"[SERVICE][ROOM] Fetched {len(response)} active rooms.")
-            return response
-
         except SQLAlchemyError as e:
             logger.error(f"[SERVICE][ROOM] SQLAlchemy Error (active rooms): {e}", exc_info=True)
             raise DatabaseException("Failed to fetch active rooms from the database.", "GET_ACTIVE_ROOMS")
-
 
 def get_room_service(db: Session = Depends(config_db)) -> RoomService:
     return RoomService(db)

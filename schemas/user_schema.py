@@ -40,3 +40,7 @@ class UserCreate(BaseModel):
 class UserListResponse(BaseModel):
     data: List[UserResponse]
     total_users: int
+    
+class ChangePasswordRequest(BaseModel):
+    old_password: str = Field(..., min_length=8, description="Password lama")
+    new_password: str = Field(..., min_length=8, description="Password baru")

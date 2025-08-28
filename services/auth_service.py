@@ -98,11 +98,27 @@ class AuthService:
 
             if not user:
                 logger.warning(f"[SERVICE][AUTH] Email not found: {email}")
-                raise ServiceException("INVALID_EMAIL_OR_PASSWORD", 401, "Invalid email or password")
+                raise ServiceException(
+                    code="INVALID_EMAIL_OR_PASSWORD",
+                    status_code=401,
+                    message="Invalid email or password"
+                )
+
+            if not user.is_active:
+                logger.warning(f"[SERVICE][AUTH] Inactive account attempted login: {email}")
+                raise ServiceException(
+                    code="INVALID_EMAIL_OR_PASSWORD",
+                    status_code=401,
+                    message="Invalid email or password"
+                )
 
             if not verify_password(password, user.password):
                 logger.warning(f"[SERVICE][AUTH] Invalid password for email: {email}")
-                raise ServiceException(code="INVALID_EMAIL_OR_PASSWORD", status_code=401, message="Invalid email or password")
+                raise ServiceException(
+                    code="INVALID_EMAIL_OR_PASSWORD",
+                    status_code=401,
+                    message="Invalid email or password"
+                )
 
             access_data = self.generate_access_token(user.id)
             refresh_token = self.generate_refresh_token(user.id)
@@ -121,6 +137,7 @@ class AuthService:
                 status_code=500,
                 code="LOGIN_ERROR"
             )
+
 
 def get_auth_service(db: Session = Depends(config_db)):
     return AuthService(db)

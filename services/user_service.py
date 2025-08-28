@@ -12,7 +12,7 @@ from pydantic import EmailStr
 from database.enums.user_role_enum import UserRole
 from exceptions.custom_exceptions import DatabaseException
 from uuid import UUID
-from utils.security_utils import hash_password
+from utils.security_utils import hash_password, verify_password
 from sqlalchemy import or_
 
 logger = logging.getLogger(__name__)
@@ -211,6 +211,51 @@ class UserService:
             self.db.rollback()
             logger.error(f"[SERVICE][USER] SQLAlchemy Error (delete_user): {e}", exc_info=True)
             raise DatabaseException(message="Terjadi kesalahan saat menghapus pengguna dari database.", code="DELETE_USER")
+        
+    def change_password(
+        self, 
+        user_id: UUID, 
+        client_id: UUID, 
+        old_password: str, 
+        new_password: str
+    ) -> User:
+        """
+        Mengganti password user setelah validasi password lama.
+        """
+        logger.info(f"[SERVICE][USER] Attempting password change for user_id={user_id}")
+
+        try:
+            user = (
+                self.db.query(User)
+                .filter(User.id == user_id, User.client_id == client_id)
+                .first()
+            )
+
+            if not user:
+                logger.warning(f"[SERVICE][USER] User not found for ID {user_id}")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="User tidak ditemukan."
+                )
+
+            if not verify_password(old_password, user.password):
+                logger.warning(f"[SERVICE][USER] Invalid old password for user {user.email}")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Password lama salah."
+                )
+
+            user.password = hash_password(new_password)
+            self.db.commit()
+            self.db.refresh(user)
+
+            logger.info(f"[SERVICE][USER] Password updated successfully for user_id={user_id}")
+            return user
+
+        except SQLAlchemyError as e:
+            self.db.rollback()
+            logger.error(f"[SERVICE][USER] SQLAlchemy Error (change_password): {e}", exc_info=True)
+            raise DatabaseException(message="Gagal mengganti password.", code="CHANGE_PASSWORD")
 
 def get_user_service(db: Session = Depends(config_db)) -> UserService:
     return UserService(db)

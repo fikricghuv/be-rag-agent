@@ -322,24 +322,24 @@ class ChatHistoryService:
             logger.error(f"SQLAlchemy Error getting categories by frequency: {e}", exc_info=True)
             raise DatabaseException("GET_CATEGORIES_BY_FREQ", "Failed to getting categories by frequency.")
         
-    def get_user_chat_history_by_user_id(self, user_id: UUID, offset: int, limit: int, client_id: UUID) -> dict:
+    def get_user_chat_history_by_user_id(
+        self, user_id: UUID, cursor: Optional[datetime], limit: int, client_id: UUID
+    ) -> dict:
         """
-        Mengambil riwayat chat untuk user spesifik berdasarkan user_id, dengan pagination.
+        Mengambil riwayat chat untuk user spesifik berdasarkan user_id, dengan cursor-based pagination.
 
         Args:
             user_id: UUID dari user.
-            offset: Jumlah item yang akan dilewati.
+            cursor: Timestamp pesan terakhir yang sudah di-load (created_at).
             limit: Jumlah item per halaman.
 
         Returns:
-            List of Chat objects terkait user_id. Mengembalikan list kosong jika user_id tidak ditemukan
-            atau tidak memiliki riwayat chat.
-        Raises:
-            SQLAlchemyError: Jika terjadi kesalahan saat berinteraksi dengan database.
+            Dict berisi history chat dengan pagination cursor.
         """
         try:
-            logger.info(f"Fetching chat history for room {user_id} with offset={offset}, limit={limit}.")
+            logger.info(f"Fetching chat history for user {user_id} with cursor={cursor}, limit={limit}.")
 
+            # cari semua room yang pernah diikuti user ini
             subquery = (
                 self.db.query(Chat.room_conversation_id)
                 .filter(Chat.sender_id == user_id, Chat.client_id == client_id)
@@ -347,56 +347,56 @@ class ChatHistoryService:
                 .subquery()
             )
 
-            user_history = (
-                self.db.query(Chat)
-                .filter(Chat.room_conversation_id.in_(select(subquery)))
-                .order_by(Chat.created_at.desc())
-                .offset(offset)
-                .limit(limit)
-                .all()
-            )
-            
-            user_history.reverse()
-            
             total_count = (
                 self.db.query(Chat)
-                .filter(
-                    Chat.room_conversation_id.in_(select(subquery)),
-                    Chat.client_id == client_id
-                )
+                .filter(Chat.room_conversation_id.in_(select(subquery)),
+                        Chat.client_id == client_id)
                 .count()
             )
 
-            logger.info(f"Successfully fetched {len(user_history)} chat entries for room {user_id}.")
-            
+            query = (
+                self.db.query(Chat)
+                .filter(Chat.room_conversation_id.in_(select(subquery)),
+                        Chat.client_id == client_id)
+            )
+
+            if cursor:
+                query = query.filter(Chat.created_at < cursor)  # ambil yg lebih lama
+
+            history = (
+                query.order_by(Chat.created_at.desc())
+                .limit(limit)
+                .all()
+            )
+
+            # balik ke ascending biar urut dari lama → baru
+            history.reverse()
+
+            # next_cursor diambil dari paling lama (index 0) karena kita balik urutannya
+            next_cursor = history[0].created_at if len(history) > 0 else None
+
+            logger.info(
+                f"Fetched {len(history)} chats (total={total_count}) for user {user_id}, next_cursor={next_cursor}"
+            )
+
             return {
-                "total": total_count,
-                "data": user_history
+                "total_count": total_count,
+                "history": history,
+                "next_cursor": next_cursor,
             }
 
         except SQLAlchemyError as e:
-            logger.error(f"SQLAlchemy Error fetching chat history for room {user_id}: {e}", exc_info=True)
-            raise DatabaseException("GET_CATEGORIES_BY_FREQ", "Error fetching chat history by user id.")
+            logger.error(f"SQLAlchemy Error fetching chat history for user {user_id}: {e}", exc_info=True)
+            raise DatabaseException("GET_HISTORY_BY_USER", "Error fetching chat history by user id.")
+
         except Exception as e:
-            logger.error(f"Unexpected Error fetching chat history for room {user_id}: {e}", exc_info=True)
-            raise DatabaseException("GET_CATEGORIES_BY_FREQ", "Error fetching chat history by user id.")
+            logger.error(f"Unexpected Error fetching chat history for user {user_id}: {e}", exc_info=True)
+            raise DatabaseException("GET_HISTORY_BY_USER", "Error fetching chat history by user id.")
+
         
-    def get_user_chat_history_by_room_id(self, room_id: UUID, offset: int, limit: int, client_id: UUID) -> dict:
-        """
-        Mengambil riwayat chat untuk user spesifik berdasarkan room_id, dengan pagination.
-
-        Args:
-            room_id: UUID dari room.
-            offset: Jumlah item yang akan dilewati.
-            limit: Jumlah item per halaman.
-
-        Returns:
-            Dict dengan user_id, total, dan history.
-        Raises:
-            SQLAlchemyError: Jika terjadi kesalahan saat berinteraksi dengan database.
-        """
+    def get_user_chat_history_by_room_id(self, room_id: UUID, cursor: Optional[datetime], limit: int, client_id: UUID) -> dict:
         try:
-            logger.info(f"Fetching chat history for room {room_id} with offset={offset}, limit={limit}.")
+            logger.info(f"Fetching chat history for room {room_id} with cursor={cursor}, limit={limit}.")
 
             user_member = self.db.query(Member.user_id)\
                 .filter(
@@ -408,46 +408,47 @@ class ChatHistoryService:
 
             if not user_member:
                 logger.warning(f"Tidak ditemukan member dengan role='user' di room {room_id}")
-                return {
-                    "user_id": None,
-                    "total": 0,
-                    "history": []
-                }
+                return {"user_id": None, "total_count": 0, "history": [], "next_cursor": None}
 
             user_id = user_member.user_id
 
             total_count = self.db.query(Chat)\
-                .filter(Chat.room_conversation_id == room_id,
-                        Chat.client_id == client_id,
-                        Chat.sender_id == user_id)\
+                .filter(Chat.room_conversation_id == room_id, Chat.client_id == client_id)\
                 .count()
 
-            history = self.db.query(Chat)\
-                .filter(Chat.room_conversation_id == room_id, 
-                        Chat.client_id == client_id)\
-                .order_by(Chat.created_at.desc())\
-                .offset(offset)\
-                .limit(limit)\
-                .all()
-            
+            query = self.db.query(Chat)\
+                .filter(Chat.room_conversation_id == room_id, Chat.client_id == client_id)
+
+            if cursor:
+                query = query.filter(Chat.created_at < cursor)  # ambil yg lebih lama
+
+            history = query.order_by(Chat.created_at.desc())\
+                        .limit(limit)\
+                        .all()
+
+            # balik ke ascending biar urutan enak dibaca
             history.reverse()
 
-            logger.info(f"Successfully fetched {len(history)} of {total_count} chat entries for room {room_id}.")
+            # hitung next_cursor
+            next_cursor = history[0].created_at if len(history) > 0 else None
+
+            logger.info(f"Fetched {len(history)} chats (total={total_count}) for room {room_id}, next_cursor={next_cursor}")
 
             return {
                 "user_id": user_id,
                 "total_count": total_count,
-                "history": history
+                "history": history,
+                "next_cursor": next_cursor
             }
-        
+
         except SQLAlchemyError as e:
             logger.error(f"SQLAlchemy Error fetching chat history for room {room_id}: {e}", exc_info=True)
-            raise DatabaseException("GET_CATEGORIES_BY_FREQ", "Error fetching chat history by room.")
-        
+            raise DatabaseException("GET_HISTORY_BY_ROOM", "Error fetching chat history by room.")
+
         except Exception as e:
             logger.error(f"Unexpected Error fetching chat history for room {room_id}: {e}", exc_info=True)
-            raise DatabaseException("GET_CATEGORIES_BY_FREQ", "Error fetching chat history by room.")
-        
+            raise DatabaseException("GET_HISTORY_BY_ROOM", "Error fetching chat history by room.")
+
     def get_total_tokens_used(self, client_id: UUID) -> float:
         """
         Menghitung total jumlah token yang digunakan oleh client tertentu

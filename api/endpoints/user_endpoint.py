@@ -8,6 +8,7 @@ from services.user_service import UserService, get_user_service
 from utils.exception_handler import handle_exceptions 
 from typing import Optional, Dict, Any
 from fastapi import Query
+from schemas.user_schema import ChangePasswordRequest
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -94,3 +95,20 @@ async def delete_user(
     logger.info(f"[USER] User with ID {user_id} deleted successfully")
     return None 
 
+@router.post("/users/{user_id}/change-password", status_code=status.HTTP_200_OK)
+@handle_exceptions(tag="[USER]")
+async def change_user_password(
+    user_id: UUID = Path(..., description="ID unik pengguna"),
+    payload: ChangePasswordRequest = Body(...),
+    user_service: UserService = Depends(get_user_service),
+    client_id: UUID = Depends(verify_access_token_and_get_client_id)
+):
+    logger.info(f"[USER] Change password request for user_id={user_id}")
+    updated_user = user_service.change_password(
+        user_id=user_id,
+        client_id=client_id,
+        old_password=payload.old_password,
+        new_password=payload.new_password
+    )
+    logger.info(f"[USER] Password changed successfully for user_id={user_id}")
+    return {"message": "Password updated successfully"}

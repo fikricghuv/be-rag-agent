@@ -14,23 +14,14 @@ from sqlalchemy.future import select
 from sqlalchemy import update, and_
 from openai import OpenAI
 from datetime import datetime
-from agno.media import File
-import base64
-import os
-import subprocess
-import tempfile
-import os
 import json
-from agno.media import Audio
-from agno.agent import Agent
-from agno.models.openai import OpenAIChat
 from agents.classification_agent.classification_message_agent import classify_chat_agent
 from agents.audio_handler_agent.audio_agent import speech_to_text
 from services.notification_service import NotificationService
 from database.models.user_model import UserFCM, User
 from services.fcm_service import FCMService
 from exceptions.custom_exceptions import ServiceException, DatabaseException
-from sqlalchemy.orm import selectinload
+import asyncio
 
 client = OpenAI()
 
@@ -39,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 class ChatService:
     def __init__(self, db: AsyncSession, redis, 
-                 active_admin_websockets: Dict[uuid.UUID, Dict[uuid.UUID, WebSocket]],
+                active_admin_websockets: Dict[uuid.UUID, Dict[uuid.UUID, WebSocket]],
                 active_user_websockets: Dict[uuid.UUID, Dict[uuid.UUID, WebSocket]]
                 ):
         self.active_admin_websockets = active_admin_websockets
@@ -191,6 +182,29 @@ class ChatService:
             raise DatabaseException("SAVE_CHAT_HISTORY", "Error saving chat history.")
         
         return message
+    
+    async def broadcast_to_admins(self, db: AsyncSession, client_id: UUID, room_id: UUID):
+        try:
+            admin_fcm_tokens = await self.get_all_admin_fcm_tokens(db, client_id)
+
+            for user_id, fcm_token in admin_fcm_tokens:
+                logger.info(f"Broadcasting message to user_id={user_id} with token={fcm_token}")
+
+                await self.fcm_service.send_message(
+                    fcm_token,
+                    title="Pesan Baru di Chat",
+                    body=f"User mengirim pesan di Room {room_id}"
+                )
+
+                await self.notification_service.create_notification(
+                    receiver_id=user_id,
+                    client_id=client_id,
+                    message=f"User mengirim pesan di Room {room_id}",
+                    notif_type="chat",
+                    is_broadcast=True
+                )
+        except Exception as e:
+            logger.error(f"Error broadcasting message to admins: {e}", exc_info=True)
 
     async def handle_user_message(self, db: AsyncSession, websocket: WebSocket, data: dict, user_id: uuid.UUID, room_id: uuid.UUID, start_time: float, client_id: UUID):
         message = data.get("message")
@@ -248,7 +262,7 @@ class ChatService:
 
             agent = call_customer_service_agent(str(chatbot_id), str(user_id), str(user_id), client_id)
             logger.debug(f"Running agent for message: {message}")
-            agent_response = agent.run(message)
+            agent_response = await agent.arun(message)
             
             input_token = getattr(getattr(agent_response.messages[-1], 'metrics', None), 'input_tokens', None)
             output_token = getattr(getattr(agent_response.messages[-1], 'metrics', None), 'output_tokens', None)
@@ -301,24 +315,7 @@ class ChatService:
             )
             await db.commit()
             
-            admin_fcm_tokens = await self.get_all_admin_fcm_tokens(db, client_id)
-
-            for user_id, fcm_token in admin_fcm_tokens:
-                logger.info(f"Broadcasting message to user_id={user_id} with token={fcm_token}")
-
-                await self.fcm_service.send_message(
-                    fcm_token,
-                    title="Pesan Baru di Chat",
-                    body=f"User mengirim pesan di Room {room_id}"
-                )
-
-                await self.notification_service.create_notification(
-                    receiver_id=user_id,
-                    client_id=client_id,
-                    message=f"User mengirim pesan di Room {room_id}",
-                    notif_type="chat",
-                    is_broadcast=True
-                )
+            await self.broadcast_to_admins(db, client_id, room_id)
 
         except Exception as e:
             logger.exception(f"Error handling user message in room {room_id}: {e}")
